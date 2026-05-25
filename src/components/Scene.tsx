@@ -8,7 +8,7 @@ import { applyRotation, normalizeShape, addOffset, placementOffset, cubesInBound
 import { drag } from '../dragState'
 
 export function Scene() {
-  const { puzzle, placedShapes, selectedShapeId, hoveredCell } = useGameStore()
+  const { puzzle, placedShapes, selectedShapeId, hoveredCell, currentDifficulty, currentPuzzleIndex } = useGameStore()
   const groupRef = useRef<THREE.Group>(null)
   const { gl: { domElement }, camera } = useThree()
 
@@ -138,7 +138,11 @@ export function Scene() {
 
       {/* ── Turntable group — everything the player interacts with ─────── */}
       <group ref={groupRef}>
-        <Container container={puzzle.container} placedShapes={placedShapes} />
+        <Container
+          key={`${currentDifficulty}-${currentPuzzleIndex}`}
+          container={puzzle.container}
+          placedShapes={placedShapes}
+        />
 
         {/* Ghost preview */}
         {classifiedGhost && (

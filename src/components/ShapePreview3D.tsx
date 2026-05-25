@@ -29,6 +29,7 @@ export function ShapePreview3D({ cubes, color }: Props) {
       camera={{ position: [cx + dist, cy + dist * 0.7, cz + dist], fov: 40 }}
       style={{ width: 120, height: 120, background: 'transparent' }}
       gl={{ alpha: true, antialias: true }}
+      onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
     >
       {/* Match the blue-room lighting of the main scene */}
       <ambientLight intensity={0.5} color="#99bbff" />

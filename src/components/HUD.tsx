@@ -1,5 +1,6 @@
 import { useGameStore } from '../store'
 import { DIFFICULTY_META, PUZZLE_LIBRARY } from '../puzzle'
+import type { DifficultyKey } from '../puzzle'
 
 const pill: React.CSSProperties = {
   position: 'fixed',
@@ -47,14 +48,16 @@ export function HUD() {
     hintCount, useHint, won, reset, puzzle,
     currentDifficulty, currentPuzzleIndex,
     goToDifficulty, nextPuzzle,
+    dynamicPuzzles,
   } = useGameStore()
 
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
   const hintsUsed     = 5 - hintCount
   const meta          = currentDifficulty ? DIFFICULTY_META[currentDifficulty] : null
-  const hasNext       = currentDifficulty
-    ? currentPuzzleIndex + 1 < PUZZLE_LIBRARY[currentDifficulty].length
-    : false
+  const totalCount    = currentDifficulty
+    ? PUZZLE_LIBRARY[currentDifficulty as DifficultyKey].length + dynamicPuzzles[currentDifficulty].length
+    : 0
+  const hasNext       = currentDifficulty ? currentPuzzleIndex + 1 < totalCount : false
 
   if (won) {
     return (
