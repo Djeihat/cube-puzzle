@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Vec3, Puzzle, PuzzleShape, PlacedShape } from './types'
 import type { DifficultyKey } from './puzzle'
 import { vec3Key, normalizeShape } from './puzzle'
-import { solve, isConnected, getOrientations } from './solver'
+import { solve, isConnected } from './solver'
 
 const MAX_ATTEMPTS = 4
 
