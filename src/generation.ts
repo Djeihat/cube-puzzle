@@ -19,21 +19,23 @@ const COLORS = ['#4A90D9', '#E67E22', '#2ECC71', '#9B59B6', '#E74C3C', '#1ABC9C'
 // ── Prompt templates ──────────────────────────────────────────────────────────
 
 const DIFFICULTY_SPEC: Record<DifficultyKey, string> = {
-  easy: `- Container: rectangular box, 10–14 cells total (e.g. 3×2×2 = 12)
-- Pieces: 3–4 pieces, each 3–5 cubes, total cells = container cells
-- Container shape: rectangular (no irregular cutouts)
+  easy: `- Container: rectangular box, 10–20 cells total (e.g. 3×2×2 = 12, 4×2×3 = 24)
+- Pieces: 3–5 pieces, each 2–5 cubes, total cells = container cells
+- Container shape: rectangular (no irregular cutouts); every dimension must be ≥ 2 cubes
 - Solutions: should have 3–5 valid solutions (relatively easy)
 - Piece orientations: rotations AND reflections allowed`,
 
-  medium: `- Container: irregular shape, 12–16 cells total
-- Pieces: 3–4 pieces, each 3–5 cubes, total cells = container cells
+  medium: `- Container: irregular shape, 15–30 cells total
+- Pieces: 5–8 pieces, each 2–4 cubes, total cells = container cells
 - Container shape: must be irregular (not a simple box) — e.g. L-shape, T-shape, slab+wall
+- Container thickness: every axis (x, y, z) must span at least 2 cubes — no flat slabs or pencil-thin shapes
 - Solutions: should have 2–3 valid solutions (moderate difficulty)
 - Piece orientations: rotations AND reflections allowed`,
 
-  hard: `- Container: irregular shape, 16–24 cells total
-- Pieces: 4–6 pieces, each 3–5 cubes, total cells = container cells
-- Container shape: must be irregular and 3-dimensional (not flat)
+  hard: `- Container: irregular shape, 20–36 cells total
+- Pieces: 7–12 pieces, each 2–4 cubes, total cells = container cells
+- Container shape: must be irregular and fully 3-dimensional
+- Container thickness: every axis (x, y, z) must span at least 2 cubes — no flat slabs or pencil-thin shapes
 - Solutions: should have exactly 1 valid solution (hard)
 - Piece orientations: rotations only (no reflections) — pieces are chiral`,
 }
@@ -119,14 +121,37 @@ function validateAndParse(
       return { error: `Piece ${i + 1} is not normalized — minimum x, y, z should all be 0.` }
   }
 
-  // Size constraints
+  // Piece count constraints
+  const pieceCount = pieces.length
+  if (difficulty === 'easy' && (pieceCount < 3 || pieceCount > 5))
+    return { error: `Easy puzzles should have 3–5 pieces, got ${pieceCount}.` }
+  if (difficulty === 'medium' && (pieceCount < 5 || pieceCount > 8))
+    return { error: `Medium puzzles should have 5–8 pieces, got ${pieceCount}.` }
+  if (difficulty === 'hard' && (pieceCount < 7 || pieceCount > 12))
+    return { error: `Hard puzzles should have 7–12 pieces, got ${pieceCount}.` }
+
+  // Minimum thickness: every axis must span at least 2 cubes
+  const xs = containerCells.map(c => c.x)
+  const ys = containerCells.map(c => c.y)
+  const zs = containerCells.map(c => c.z)
+  const spanX = Math.max(...xs) - Math.min(...xs)
+  const spanY = Math.max(...ys) - Math.min(...ys)
+  const spanZ = Math.max(...zs) - Math.min(...zs)
+  if (spanX < 1 || spanY < 1 || spanZ < 1)
+    return {
+      error: `Container must be at least 2 cubes thick in every dimension. ` +
+             `Got extents x=${spanX + 1}, y=${spanY + 1}, z=${spanZ + 1}. ` +
+             `No flat slabs or pencil-shaped containers.`,
+    }
+
+  // Container cell-count constraints
   const totalCells = containerCells.length
-  if (difficulty === 'easy' && (totalCells < 10 || totalCells > 14))
-    return { error: `Easy puzzles should have 10–14 container cells, got ${totalCells}.` }
-  if (difficulty === 'medium' && (totalCells < 12 || totalCells > 16))
-    return { error: `Medium puzzles should have 12–16 container cells, got ${totalCells}.` }
-  if (difficulty === 'hard' && (totalCells < 16 || totalCells > 24))
-    return { error: `Hard puzzles should have 16–24 container cells, got ${totalCells}.` }
+  if (difficulty === 'easy' && (totalCells < 10 || totalCells > 20))
+    return { error: `Easy puzzles should have 10–20 container cells, got ${totalCells}.` }
+  if (difficulty === 'medium' && (totalCells < 15 || totalCells > 30))
+    return { error: `Medium puzzles should have 15–30 container cells, got ${totalCells}.` }
+  if (difficulty === 'hard' && (totalCells < 20 || totalCells > 36))
+    return { error: `Hard puzzles should have 20–36 container cells, got ${totalCells}.` }
 
   return { containerCells, pieces }
 }
