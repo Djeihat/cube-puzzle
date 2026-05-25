@@ -763,11 +763,273 @@ export function getHardPuzzle2(): Puzzle {
   return { container, shapes, solution }
 }
 
+/*
+  Easy 4 — 3×2×3 box (18 cells), five pieces (3+4+4+4+3).
+
+  Cell assignment:
+    P1 (blue,  3): (0,0,0)(1,0,0)(2,0,0)             — bar along x at y=0,z=0
+    P2 (orange,4): (0,0,1)(1,0,1)(0,0,2)(1,0,2)       — 2×2 square in xz at y=0
+    P3 (green, 4): (2,0,1)(2,0,2)(2,1,2)(1,1,2)       — L-shape
+    P4 (purple,4): (0,1,0)(1,1,0)(2,1,0)(2,1,1)       — L-bar at y=1
+    P5 (red,   3): (0,1,1)(1,1,1)(0,1,2)              — corner at y=1
+*/
+export function getEasyPuzzle4(): Puzzle {
+  const container: Vec3 = { x: 3, y: 2, z: 3 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e4a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0}] },
+    { id: 'e4b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:1,y:0,z:1}] },
+    { id: 'e4c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:1,y:0,z:0},{x:1,y:0,z:1},{x:1,y:1,z:1},{x:0,y:1,z:1}] },
+    { id: 'e4d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:0,z:1}] },
+    { id: 'e4e', color: COLORS[4], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e4a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0}] },
+    { id: 'e4b', color: COLORS[1],
+      cubes: [{x:0,y:0,z:1},{x:1,y:0,z:1},{x:0,y:0,z:2},{x:1,y:0,z:2}] },
+    { id: 'e4c', color: COLORS[2],
+      cubes: [{x:2,y:0,z:1},{x:2,y:0,z:2},{x:2,y:1,z:2},{x:1,y:1,z:2}] },
+    { id: 'e4d', color: COLORS[3],
+      cubes: [{x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},{x:2,y:1,z:1}] },
+    { id: 'e4e', color: COLORS[4],
+      cubes: [{x:0,y:1,z:1},{x:1,y:1,z:1},{x:0,y:1,z:2}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 5 — 4×2×2 box (16 cells), four pieces of 4 cubes each.
+
+  Cell assignment:
+    P1 (blue,  4): (0,0,0)(0,1,0)(0,0,1)(0,1,1) — 2×2 square in yz at x=0
+    P2 (orange,4): (1,0,0)(2,0,0)(3,0,0)(1,0,1) — L-bar along x at y=0
+    P3 (green, 4): (1,1,0)(2,1,0)(3,1,0)(3,1,1) — L-bar along x at y=1
+    P4 (purple,4): (2,0,1)(3,0,1)(1,1,1)(2,1,1) — skew
+*/
+export function getEasyPuzzle5(): Puzzle {
+  const container: Vec3 = { x: 4, y: 2, z: 2 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e5a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1},{x:0,y:1,z:1}] },
+    { id: 'e5b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:0,y:0,z:1}] },
+    { id: 'e5c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:0,z:1}] },
+    { id: 'e5d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:1,y:0,z:0},{x:2,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e5a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1},{x:0,y:1,z:1}] },
+    { id: 'e5b', color: COLORS[1],
+      cubes: [{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:1,y:0,z:1}] },
+    { id: 'e5c', color: COLORS[2],
+      cubes: [{x:1,y:1,z:0},{x:2,y:1,z:0},{x:3,y:1,z:0},{x:3,y:1,z:1}] },
+    { id: 'e5d', color: COLORS[3],
+      cubes: [{x:2,y:0,z:1},{x:3,y:0,z:1},{x:1,y:1,z:1},{x:2,y:1,z:1}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 6 — 4×2×2 box (16 cells), five pieces (3+3+4+3+3).
+
+  Cell assignment:
+    P1 (blue,  3): (0,0,0)(0,1,0)(0,0,1)          — yz-corner at x=0
+    P2 (orange,3): (0,1,1)(1,1,1)(1,1,0)           — xz-corner at y=1
+    P3 (green, 4): (1,0,0)(2,0,0)(3,0,0)(1,0,1)   — L-bar at y=0
+    P4 (purple,3): (2,0,1)(3,0,1)(3,1,1)           — corner at z=1
+    P5 (red,   3): (2,1,0)(3,1,0)(2,1,1)           — xz-corner at y=1
+*/
+export function getEasyPuzzle6(): Puzzle {
+  const container: Vec3 = { x: 4, y: 2, z: 2 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e6a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1}] },
+    { id: 'e6b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:1},{x:1,y:0,z:1},{x:1,y:0,z:0}] },
+    { id: 'e6c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:0,y:0,z:1}] },
+    { id: 'e6d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:1,z:0}] },
+    { id: 'e6e', color: COLORS[4], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e6a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1}] },
+    { id: 'e6b', color: COLORS[1],
+      cubes: [{x:0,y:1,z:1},{x:1,y:1,z:1},{x:1,y:1,z:0}] },
+    { id: 'e6c', color: COLORS[2],
+      cubes: [{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:1,y:0,z:1}] },
+    { id: 'e6d', color: COLORS[3],
+      cubes: [{x:2,y:0,z:1},{x:3,y:0,z:1},{x:3,y:1,z:1}] },
+    { id: 'e6e', color: COLORS[4],
+      cubes: [{x:2,y:1,z:0},{x:3,y:1,z:0},{x:2,y:1,z:1}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 7 — 3×3×2 box (18 cells), four pieces (5+4+5+4).
+
+  Cell assignment (z=0 layer then z=1 layer):
+    P1 (blue,  5): (0,0,0)(1,0,0)(2,0,0)(2,1,0)(2,2,0) — L along x then up in y
+    P2 (orange,4): (0,1,0)(1,1,0)(0,2,0)(1,2,0)         — 2×2 square
+    P3 (green, 5): (0,0,1)(1,0,1)(2,0,1)(2,1,1)(2,2,1) — L at z=1
+    P4 (purple,4): (0,1,1)(1,1,1)(0,2,1)(1,2,1)         — 2×2 at z=1
+*/
+export function getEasyPuzzle7(): Puzzle {
+  const container: Vec3 = { x: 3, y: 3, z: 2 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e7a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0},{x:2,y:2,z:0}] },
+    { id: 'e7b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0}] },
+    { id: 'e7c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0},{x:2,y:2,z:0}] },
+    { id: 'e7d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e7a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0},{x:2,y:2,z:0}] },
+    { id: 'e7b', color: COLORS[1],
+      cubes: [{x:0,y:1,z:0},{x:1,y:1,z:0},{x:0,y:2,z:0},{x:1,y:2,z:0}] },
+    { id: 'e7c', color: COLORS[2],
+      cubes: [{x:0,y:0,z:1},{x:1,y:0,z:1},{x:2,y:0,z:1},{x:2,y:1,z:1},{x:2,y:2,z:1}] },
+    { id: 'e7d', color: COLORS[3],
+      cubes: [{x:0,y:1,z:1},{x:1,y:1,z:1},{x:0,y:2,z:1},{x:1,y:2,z:1}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 8 — 4×2×3 box (24 cells), five pieces (5+5+5+4+5).
+
+  Cell assignment:
+    P1 (blue,  5): (0,0,0)(1,0,0)(2,0,0)(3,0,0)(3,1,0) — L-bar at z=0,y=0
+    P2 (orange,5): (0,1,0)(1,1,0)(2,1,0)(2,1,1)(2,1,2) — L into z at y=1
+    P3 (green, 5): (0,0,1)(1,0,1)(2,0,1)(3,0,1)(3,1,1) — L-bar at z=1,y=0
+    P4 (purple,4): (0,1,1)(1,1,1)(0,1,2)(1,1,2)         — 2×2 at y=1
+    P5 (red,   5): (0,0,2)(1,0,2)(2,0,2)(3,0,2)(3,1,2) — L-bar at z=2,y=0
+*/
+export function getEasyPuzzle8(): Puzzle {
+  const container: Vec3 = { x: 4, y: 2, z: 3 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e8a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e8b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:0,z:1},{x:2,y:0,z:2}] },
+    { id: 'e8c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e8d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:1,y:0,z:1}] },
+    { id: 'e8e', color: COLORS[4], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e8a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e8b', color: COLORS[1],
+      cubes: [{x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},{x:2,y:1,z:1},{x:2,y:1,z:2}] },
+    { id: 'e8c', color: COLORS[2],
+      cubes: [{x:0,y:0,z:1},{x:1,y:0,z:1},{x:2,y:0,z:1},{x:3,y:0,z:1},{x:3,y:1,z:1}] },
+    { id: 'e8d', color: COLORS[3],
+      cubes: [{x:0,y:1,z:1},{x:1,y:1,z:1},{x:0,y:1,z:2},{x:1,y:1,z:2}] },
+    { id: 'e8e', color: COLORS[4],
+      cubes: [{x:0,y:0,z:2},{x:1,y:0,z:2},{x:2,y:0,z:2},{x:3,y:0,z:2},{x:3,y:1,z:2}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 9 — 2×3×3 box (18 cells), four pieces (5+4+5+4).
+
+  Cell assignment:
+    P1 (blue,  5): (0,0,0)(1,0,0)(0,0,1)(0,1,1)(0,0,2) — branching staircase
+    P2 (orange,4): (1,0,1)(1,0,2)(1,1,2)(0,1,2)         — L-shape
+    P3 (green, 5): (1,1,0)(0,1,0)(0,2,0)(1,2,0)(1,1,1) — T-ish
+    P4 (purple,4): (0,2,1)(1,2,1)(0,2,2)(1,2,2)         — 2×2 at y=2
+*/
+export function getEasyPuzzle9(): Puzzle {
+  const container: Vec3 = { x: 2, y: 3, z: 3 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e9a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:0,y:1,z:1},{x:0,y:0,z:2}] },
+    { id: 'e9b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:1,y:0,z:0},{x:1,y:0,z:1},{x:1,y:1,z:1},{x:0,y:1,z:1}] },
+    { id: 'e9c', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0},{x:1,y:0,z:1}] },
+    { id: 'e9d', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:1,y:0,z:1}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e9a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:0,y:1,z:1},{x:0,y:0,z:2}] },
+    { id: 'e9b', color: COLORS[1],
+      cubes: [{x:1,y:0,z:1},{x:1,y:0,z:2},{x:1,y:1,z:2},{x:0,y:1,z:2}] },
+    { id: 'e9c', color: COLORS[2],
+      cubes: [{x:1,y:1,z:0},{x:0,y:1,z:0},{x:0,y:2,z:0},{x:1,y:2,z:0},{x:1,y:1,z:1}] },
+    { id: 'e9d', color: COLORS[3],
+      cubes: [{x:0,y:2,z:1},{x:1,y:2,z:1},{x:0,y:2,z:2},{x:1,y:2,z:2}] },
+  ]
+  return { container, shapes, solution }
+}
+
+/*
+  Easy 10 — 4×3×2 box (24 cells), five pieces (5+5+4+5+5).
+
+  Cell assignment:
+    P1 (blue,  5): (0,0,0)(1,0,0)(2,0,0)(3,0,0)(3,1,0) — L-bar at z=0
+    P2 (orange,5): (0,1,0)(1,1,0)(2,1,0)(2,2,0)(3,2,0) — S-bar at z=0
+    P3 (purple,4): (0,2,0)(1,2,0)(0,2,1)(1,2,1)         — 2×2 at y=2
+    P4 (green, 5): (0,0,1)(1,0,1)(2,0,1)(3,0,1)(3,1,1) — L-bar at z=1
+    P5 (red,   5): (0,1,1)(1,1,1)(2,1,1)(2,2,1)(3,2,1) — S-bar at z=1
+*/
+export function getEasyPuzzle10(): Puzzle {
+  const container: Vec3 = { x: 4, y: 3, z: 2 }
+  const shapes: PuzzleShape[] = [
+    { id: 'e10a', color: COLORS[0], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e10b', color: COLORS[1], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0},{x:3,y:1,z:0}] },
+    { id: 'e10c', color: COLORS[3], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:0,z:1},{x:1,y:0,z:1}] },
+    { id: 'e10d', color: COLORS[2], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e10e', color: COLORS[4], rotation: [0,0,0], placed: false,
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0},{x:3,y:1,z:0}] },
+  ]
+  const solution: PlacedShape[] = [
+    { id: 'e10a', color: COLORS[0],
+      cubes: [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0},{x:3,y:1,z:0}] },
+    { id: 'e10b', color: COLORS[1],
+      cubes: [{x:0,y:1,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0},{x:2,y:2,z:0},{x:3,y:2,z:0}] },
+    { id: 'e10c', color: COLORS[3],
+      cubes: [{x:0,y:2,z:0},{x:1,y:2,z:0},{x:0,y:2,z:1},{x:1,y:2,z:1}] },
+    { id: 'e10d', color: COLORS[2],
+      cubes: [{x:0,y:0,z:1},{x:1,y:0,z:1},{x:2,y:0,z:1},{x:3,y:0,z:1},{x:3,y:1,z:1}] },
+    { id: 'e10e', color: COLORS[4],
+      cubes: [{x:0,y:1,z:1},{x:1,y:1,z:1},{x:2,y:1,z:1},{x:2,y:2,z:1},{x:3,y:2,z:1}] },
+  ]
+  return { container, shapes, solution }
+}
+
 // ── Puzzle library ────────────────────────────────────────────────────────────
 // Each entry is a factory function so every call returns a fresh, mutable puzzle.
 
 export const PUZZLE_LIBRARY: Record<DifficultyKey, Array<() => Puzzle>> = {
-  easy:   [getEasyPuzzle, getEasyPuzzle2, getEasyPuzzle3],
+  easy: [
+    getEasyPuzzle, getEasyPuzzle2, getEasyPuzzle3,
+    getEasyPuzzle4, getEasyPuzzle5, getEasyPuzzle6,
+    getEasyPuzzle7, getEasyPuzzle8, getEasyPuzzle9, getEasyPuzzle10,
+  ],
   medium: [getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3],
   hard:   [getHardPuzzle, getHardPuzzle2],
 }
