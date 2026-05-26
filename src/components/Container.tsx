@@ -182,19 +182,12 @@ export function Container({ container, placedShapes }: Props) {
     if (drag.occurred) { drag.occurred = false; return }
     const state = useGameStore.getState()
     const shapeId = state.selectedShapeId
+    if (!shapeId) return  // lifting is handled directly by PieceMesh onClick
     const cell = cellFromHit(e)
-    if (shapeId) {
-      // Place the held piece
-      const shape = state.puzzle.shapes.find(s => s.id === shapeId && !s.placed)
-      if (!shape) return
-      const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
-      placeShape(shapeId, placementOffset(shapeCubes, cell))
-    } else {
-      // Lift whatever placed piece occupies this cell
-      const cellKey = vec3Key(cell)
-      const placed = state.placedShapes.find(p => p.cubes.some(c => vec3Key(c) === cellKey))
-      if (placed) liftShape(placed.id)
-    }
+    const shape = state.puzzle.shapes.find(s => s.id === shapeId && !s.placed)
+    if (!shape) return
+    const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+    placeShape(shapeId, placementOffset(shapeCubes, cell))
   }
 
   return (
@@ -299,12 +292,17 @@ export function Container({ container, placedShapes }: Props) {
         </mesh>
       ))}
 
-      {/* Placed shapes — visual only; hit box handles clicking to lift */}
+      {/* Placed shapes — onClick handled here; PieceMesh stopPropagation prevents
+          the hit box click from also firing, so lifting stays accurate */}
       {placedShapes.map(shape => (
         <PieceMesh
           key={shape.id}
           cubes={shape.cubes}
           color={shape.color}
+          onClick={() => {
+            if (drag.occurred) { drag.occurred = false; return }
+            if (!useGameStore.getState().selectedShapeId) liftShape(shape.id)
+          }}
         />
       ))}
 
