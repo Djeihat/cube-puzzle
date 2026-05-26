@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import type { ThreeEvent } from '@react-three/fiber'
 import type { Vec3, PlacedShape } from '../types'
 import { PieceMesh } from './PieceMesh'
 import { useGameStore } from '../store'
@@ -115,8 +116,20 @@ function buildContainerEdgeGeo(validCells: Vec3[]): THREE.BufferGeometry {
 
 const noRaycast = () => {}
 
+// Snap an arbitrary grid cell to the nearest member of validCells (Manhattan distance).
+function findNearestValidCell(target: Vec3, validCells: Vec3[]): Vec3 {
+  let nearest = validCells[0]
+  let minDist = Infinity
+  for (const cell of validCells) {
+    const d = Math.abs(cell.x - target.x) + Math.abs(cell.y - target.y) + Math.abs(cell.z - target.z)
+    if (d < minDist) { minDist = d; nearest = cell }
+    if (d === 0) break
+  }
+  return nearest
+}
+
 export function Container({ container, placedShapes }: Props) {
-  const { puzzle, hintHighlight, selectedShapeId, setHoveredCell, placeShape } = useGameStore()
+  const { puzzle, hintHighlight, selectedShapeId, setHoveredCell, placeShape, liftShape } = useGameStore()
 
   const cx = container.x / 2
   const cy = container.y / 2
@@ -137,13 +150,51 @@ export function Container({ container, placedShapes }: Props) {
     [validCells],
   )
 
-  function handleCellClick(cell: Vec3) {
-    // Ignore clicks that are actually the end of a turntable drag.
+  // ── Hit-box helpers ───────────────────────────────────────────────────────
+  // Convert a pointer event on the bounding-box mesh into a container grid cell.
+  // The hit point is in world space; worldToLocal brings it into the box's local
+  // frame (origin at box centre), then we inset 0.5 along the inward face normal
+  // and floor to the nearest integer cell.
+  function cellFromHit(e: ThreeEvent<PointerEvent | MouseEvent>): Vec3 {
+    const boxLocal = e.object.worldToLocal(e.point.clone())
+    const normal = (e as any).face?.normal ?? new THREE.Vector3(0, 1, 0)
+    const inset = boxLocal.clone().addScaledVector(normal, -0.5)
+    const cellX = Math.max(0, Math.min(container.x - 1, Math.floor(inset.x + cx)))
+    const cellY = Math.max(0, Math.min(container.y - 1, Math.floor(inset.y + cy)))
+    const cellZ = Math.max(0, Math.min(container.z - 1, Math.floor(inset.z + cz)))
+    const raw = { x: cellX, y: cellY, z: cellZ }
+    return validCells ? findNearestValidCell(raw, validCells) : raw
+  }
+
+  function handlePointerMove(e: ThreeEvent<PointerEvent>) {
+    e.stopPropagation()
+    if (!selectedShapeId) return
+    setHoveredCell(cellFromHit(e))
+  }
+
+  function handlePointerLeave(e: ThreeEvent<PointerEvent>) {
+    e.stopPropagation()
+    setHoveredCell(null)
+  }
+
+  function handleClick(e: ThreeEvent<MouseEvent>) {
+    e.stopPropagation()
     if (drag.occurred) { drag.occurred = false; return }
-    const shape = useGameStore.getState().puzzle.shapes.find(s => s.id === selectedShapeId && !s.placed)
-    if (!shape) return
-    const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
-    placeShape(shape.id, placementOffset(shapeCubes, cell))
+    const state = useGameStore.getState()
+    const shapeId = state.selectedShapeId
+    const cell = cellFromHit(e)
+    if (shapeId) {
+      // Place the held piece
+      const shape = state.puzzle.shapes.find(s => s.id === shapeId && !s.placed)
+      if (!shape) return
+      const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+      placeShape(shapeId, placementOffset(shapeCubes, cell))
+    } else {
+      // Lift whatever placed piece occupies this cell
+      const cellKey = vec3Key(cell)
+      const placed = state.placedShapes.find(p => p.cubes.some(c => vec3Key(c) === cellKey))
+      if (placed) liftShape(placed.id)
+    }
   }
 
   return (
@@ -214,25 +265,27 @@ export function Container({ container, placedShapes }: Props) {
       </mesh>
 
       {/*
-        One mesh per empty cell — hover / click target.
-        depthWrite={false} prevents these from blocking the transparent ghost cubes.
+        Invisible bounding-box hit surface — one mesh that covers the entire
+        container (+ 0.5 unit padding) and intercepts all pointer events.
+        It is always in front of the placed pieces inside it, so the cursor
+        never has to land on an empty cell to trigger a ghost or a click.
       */}
+      <mesh
+        position={[cx, cy, cz]}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
+      >
+        <boxGeometry args={[container.x + 1, container.y + 1, container.z + 1]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      {/* Empty cell visual hints — purely decorative, no raycasting */}
       {emptyCells.map(cell => (
         <mesh
           key={vec3Key(cell)}
           position={[cell.x + 0.5, cell.y + 0.5, cell.z + 0.5]}
-          onPointerEnter={(e) => {
-            e.stopPropagation()
-            if (selectedShapeId) setHoveredCell(cell)
-          }}
-          onPointerLeave={(e) => {
-            e.stopPropagation()
-            setHoveredCell(null)
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            handleCellClick(cell)
-          }}
+          raycast={noRaycast}
         >
           <boxGeometry args={[0.99, 0.99, 0.99]} />
           <meshStandardMaterial
@@ -244,13 +297,12 @@ export function Container({ container, placedShapes }: Props) {
         </mesh>
       ))}
 
-      {/* Placed shapes — rendered as single connected meshes, one per piece */}
+      {/* Placed shapes — visual only; hit box handles clicking to lift */}
       {placedShapes.map(shape => (
         <PieceMesh
           key={shape.id}
           cubes={shape.cubes}
           color={shape.color}
-          onClick={() => useGameStore.getState().liftShape(shape.id)}
         />
       ))}
 

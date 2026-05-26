@@ -56,7 +56,7 @@ function Instructions({ holding, won }: { holding: boolean; won: boolean }) {
     }}>
       {holding ? (
         <>
-          <div>Hover container to snap & place · Click to place</div>
+          <div>Hover container to preview · Click to place</div>
           <div>Q/E · W/S · A/D to rotate the piece</div>
           <div>Click piece in tray again to deselect</div>
         </>
