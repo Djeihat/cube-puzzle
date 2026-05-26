@@ -6,9 +6,12 @@ interface Props {
   color: string
   opacity?: number
   onClick?: () => void
+  // Pass `() => {}` to disable raycasting (e.g. for ghost cubes that
+  // should not intercept pointer events).
+  raycast?: (raycaster: unknown, intersects: unknown[]) => void
 }
 
-export function UnitCube({ position, color, opacity = 1, onClick }: Props) {
+export function UnitCube({ position, color, opacity = 1, onClick, raycast }: Props) {
   return (
     <RoundedBox
       args={[0.9, 0.9, 0.9]}
@@ -16,6 +19,7 @@ export function UnitCube({ position, color, opacity = 1, onClick }: Props) {
       smoothness={2}
       position={[position.x + 0.5, position.y + 0.5, position.z + 0.5]}
       onClick={onClick ? (e) => { e.stopPropagation(); onClick() } : undefined}
+      raycast={raycast}
     >
       <meshStandardMaterial
         color={color}

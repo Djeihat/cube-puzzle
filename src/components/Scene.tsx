@@ -6,11 +6,28 @@ import { Container } from './Container'
 import { UnitCube } from './UnitCube'
 import { applyRotation, normalizeShape, addOffset, placementOffset, cubesInBounds, cubesOverlap, vec3Key } from '../puzzle'
 import { drag } from '../dragState'
+import type { Vec3 } from '../types'
 
 export function Scene() {
   const { puzzle, placedShapes, selectedShapeId, hoveredCell, currentDifficulty, currentPuzzleIndex } = useGameStore()
   const groupRef = useRef<THREE.Group>(null)
   const { gl: { domElement }, camera } = useThree()
+
+  // ── Mouse tracking for exterior ghost ───────────────────────────────────
+  // NDC coords updated on every DOM pointermove so we can project a cursor
+  // ray onto a frontoparallel plane independently of the R3F event system.
+  const mouseNDC = useRef(new THREE.Vector2())
+  const raycasterRef = useRef(new THREE.Raycaster())
+
+  useEffect(() => {
+    function onMove(e: PointerEvent) {
+      const rect = domElement.getBoundingClientRect()
+      mouseNDC.current.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1
+      mouseNDC.current.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1
+    }
+    domElement.addEventListener('pointermove', onMove)
+    return () => domElement.removeEventListener('pointermove', onMove)
+  }, [domElement])
 
   // ── Ghost preview ────────────────────────────────────────────────────────
   const selectedShape = puzzle.shapes.find(s => s.id === selectedShapeId && !s.placed)
@@ -18,7 +35,48 @@ export function Scene() {
     ? normalizeShape(applyRotation(selectedShape.cubes, ...selectedShape.rotation))
     : null
 
-  const offset = hoveredCell && shapeCubes ? placementOffset(shapeCubes, hoveredCell) : null
+  const cx = puzzle.container.x / 2
+  const cy = puzzle.container.y / 2
+  const cz = puzzle.container.z / 2
+
+  // Compute the ghost cell from two sources:
+  //   Interior — hoveredCell (set by R3F cell-mesh / PieceMesh events, precise)
+  //   Exterior — frontoparallel plane projection (follows cursor in free space)
+  //
+  // The frontoparallel plane passes through world origin (container centre) with
+  // normal = camera direction.  Projecting the cursor ray onto it gives the 3D
+  // world point at the container's apparent depth.  Converting that point to
+  // the turntable group's local frame and then to grid coords (no clamping)
+  // lets the ghost float OUTSIDE the container when cursor is in empty space.
+  //
+  // Interior cursor positions are handled by the R3F cell-mesh events (hoveredCell),
+  // which remain authoritative for placement clicks.  The plane projection is only
+  // used for the ghost DISPLAY; placement always uses hoveredCell.
+  let ghostCell: Vec3 | null = hoveredCell
+
+  if (selectedShapeId && shapeCubes && groupRef.current) {
+    raycasterRef.current.setFromCamera(mouseNDC.current, camera)
+    const planeNormal = camera.position.clone().normalize()
+    const plane = new THREE.Plane(planeNormal, 0)
+    const pt = new THREE.Vector3()
+    if (raycasterRef.current.ray.intersectPlane(plane, pt)) {
+      const local = groupRef.current.worldToLocal(pt)
+      const gx = Math.floor(local.x + cx)
+      const gy = Math.floor(local.y + cy)
+      const gz = Math.floor(local.z + cz)
+      const inside =
+        gx >= 0 && gx < puzzle.container.x &&
+        gy >= 0 && gy < puzzle.container.y &&
+        gz >= 0 && gz < puzzle.container.z
+      if (!inside) {
+        // Exterior: ghost floats freely at the projected cursor position.
+        ghostCell = { x: gx, y: gy, z: gz }
+      }
+      // Interior: keep hoveredCell (precise R3F snap).
+    }
+  }
+
+  const offset = ghostCell && shapeCubes ? placementOffset(shapeCubes, ghostCell) : null
   const ghostCubes = offset && shapeCubes ? addOffset(shapeCubes, offset) : null
 
   const occupied = placedShapes.flatMap(p => p.cubes)
@@ -30,10 +88,6 @@ export function Scene() {
           cubesOverlap([cube], occupied),
       }))
     : null
-
-  const cx = puzzle.container.x / 2
-  const cy = puzzle.container.y / 2
-  const cz = puzzle.container.z / 2
 
   const floorY = -cy - 1.2
 
@@ -141,7 +195,7 @@ export function Scene() {
         in world-space.  Shadows from the rotating group above still project
         onto it correctly because Three.js renders shadows in world-space.
       */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, floorY, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, floorY, 0]} receiveShadow raycast={() => {}}>
         <planeGeometry args={[30, 30]} />
         <shadowMaterial transparent opacity={0.40} />
       </mesh>
@@ -154,7 +208,9 @@ export function Scene() {
           placedShapes={placedShapes}
         />
 
-        {/* Snap ghost: shown when hovering over the container */}
+        {/* Snap ghost: shown when hovering over or near the container.
+            raycast={() => {}} prevents these transparent cubes from
+            intercepting pointer events meant for the hit box. */}
         {classifiedGhost && (
           <group position={[-cx, -cy, -cz]}>
             {classifiedGhost.map(({ cube, conflict }) => (
@@ -163,6 +219,7 @@ export function Scene() {
                 position={cube}
                 color={conflict ? '#ff4444' : '#ffffff'}
                 opacity={conflict ? 0.40 : 0.55}
+                raycast={() => {}}
               />
             ))}
           </group>

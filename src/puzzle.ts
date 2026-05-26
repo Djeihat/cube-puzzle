@@ -57,15 +57,21 @@ export function cubesInBounds(cubes: Vec3[], container: Vec3, validCells?: Vec3[
   )
 }
 
-// Returns the grid cell closest to the centroid of a normalized shape.
-// Used to anchor the ghost and placement at the cursor rather than the corner.
+// Returns the cube in the shape closest to the centroid.
+// The cursor is always anchored to an actual cube, never to empty space
+// (the centroid of asymmetric shapes like L-pieces falls outside any cube).
 export function getShapeCenter(cubes: Vec3[]): Vec3 {
   const n = cubes.length
-  return {
-    x: Math.round(cubes.reduce((s, c) => s + c.x, 0) / n),
-    y: Math.round(cubes.reduce((s, c) => s + c.y, 0) / n),
-    z: Math.round(cubes.reduce((s, c) => s + c.z, 0) / n),
+  const cx = cubes.reduce((s, c) => s + c.x, 0) / n
+  const cy = cubes.reduce((s, c) => s + c.y, 0) / n
+  const cz = cubes.reduce((s, c) => s + c.z, 0) / n
+  let best = cubes[0]
+  let bestDist = Infinity
+  for (const c of cubes) {
+    const d = (c.x - cx) ** 2 + (c.y - cy) ** 2 + (c.z - cz) ** 2
+    if (d < bestDist) { bestDist = d; best = c }
   }
+  return best
 }
 
 export function placementOffset(shapeCubes: Vec3[], targetCell: Vec3): Vec3 {

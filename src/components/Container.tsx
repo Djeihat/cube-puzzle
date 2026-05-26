@@ -166,6 +166,17 @@ export function Container({ container, placedShapes }: Props) {
     return validCells ? findNearestValidCell(raw, validCells) : raw
   }
 
+  // Shared placement helper — used by empty cell meshes and the hit box.
+  function placePiece(cell: Vec3) {
+    const state = useGameStore.getState()
+    const shapeId = state.selectedShapeId
+    if (!shapeId) return
+    const shape = state.puzzle.shapes.find(s => s.id === shapeId && !s.placed)
+    if (!shape) return
+    const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+    placeShape(shapeId, placementOffset(shapeCubes, cell))
+  }
+
   function handlePointerMove(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation()
     if (!selectedShapeId) return
@@ -175,14 +186,8 @@ export function Container({ container, placedShapes }: Props) {
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation()
     if (drag.occurred) { drag.occurred = false; return }
-    const state = useGameStore.getState()
-    const shapeId = state.selectedShapeId
-    if (!shapeId) return  // lifting is handled directly by PieceMesh onClick
-    const cell = cellFromHit(e)
-    const shape = state.puzzle.shapes.find(s => s.id === shapeId && !s.placed)
-    if (!shape) return
-    const shapeCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
-    placeShape(shapeId, placementOffset(shapeCubes, cell))
+    if (!useGameStore.getState().selectedShapeId) return  // lifting handled by PieceMesh onClick
+    placePiece(cellFromHit(e))
   }
 
   return (
@@ -253,28 +258,45 @@ export function Container({ container, placedShapes }: Props) {
       </mesh>
 
       {/*
-        Invisible bounding-box hit surface — one mesh that covers the entire
-        container (+ 0.5 unit padding) and intercepts all pointer events.
-        It is always in front of the placed pieces inside it, so the cursor
-        never has to land on an empty cell to trigger a ghost or a click.
+        Large invisible hit surface — handles EXTERIOR cursor positions (empty
+        space outside the container).  Empty cell meshes and PieceMeshes
+        intercept interior rays first via stopPropagation, so this only fires
+        when no closer mesh is hit.
+
+        Size is a fixed 50×50×50 (half-extent 25) so the camera is always
+        INSIDE the box regardless of zoom level or turntable angle.  The zoom
+        range is 4–22 units from origin; the camera's maximum projection onto
+        any axis equals its distance from origin (≤ 22), which is less than
+        the half-extent of 25.  With BackSide material, rays from an interior
+        camera always exit through the far inner face, guaranteeing a hit.
       */}
       <mesh
         position={[cx, cy, cz]}
         onPointerMove={handlePointerMove}
         onClick={handleClick}
       >
-        {/* Large enough to cover the full camera frustum at max zoom (~22 units out) */}
-        <boxGeometry args={[container.x + 20, container.y + 20, container.z + 20]} />
-        {/* BackSide so raycasting works when the camera is inside the large box */}
+        <boxGeometry args={[50, 50, 50]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
       </mesh>
 
-      {/* Empty cell visual hints — purely decorative, no raycasting */}
+      {/* Empty cell visual hints — also act as interior hover/click targets.
+          Being the nearest mesh for any ray into an empty cell, they intercept
+          before the large hit box (whose BackSide exit face is always farther).
+          stopPropagation on both handlers keeps the hit box from firing too. */}
       {emptyCells.map(cell => (
         <mesh
           key={vec3Key(cell)}
           position={[cell.x + 0.5, cell.y + 0.5, cell.z + 0.5]}
-          raycast={noRaycast}
+          onPointerMove={(e) => {
+            e.stopPropagation()
+            if (!selectedShapeId) return
+            setHoveredCell(cell)
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
+            if (drag.occurred) { drag.occurred = false; return }
+            placePiece(cell)
+          }}
         >
           <boxGeometry args={[0.99, 0.99, 0.99]} />
           <meshStandardMaterial
