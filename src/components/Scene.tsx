@@ -51,8 +51,8 @@ export function Scene() {
     const pcx = (minX + maxX) / 2 + 0.5
     const pcy = (minY + maxY) / 2 + 0.5
     const pcz = (minZ + maxZ) / 2 + 0.5
-    // Position piece centered (x,z) and floating above the container top (+2 gap)
-    return [-pcx, cy + 2 - pcy, -pcz] as [number, number, number]
+    // Position piece centered (x,z) and floating just above the container top
+    return [-pcx, cy + 0.5 - pcy, -pcz] as [number, number, number]
   })() : null
 
   // ── Turntable controls ───────────────────────────────────────────────────
