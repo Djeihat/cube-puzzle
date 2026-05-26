@@ -66,7 +66,7 @@ export function HUD() {
 
         <div>
           <div style={{ color: '#fff', fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>
-            {meta?.label ?? 'Puzzle'} solved!
+            {meta?.label ?? 'Puzzle'} #{currentPuzzleIndex + 1} solved!
           </div>
           <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}>
             {hintsUsed === 0 ? 'No hints used' : `${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`}
@@ -101,7 +101,7 @@ export function HUD() {
 
       <div style={divider} />
 
-      {/* Difficulty badge */}
+      {/* Difficulty + puzzle number */}
       {meta && (
         <>
           <span style={{
@@ -109,6 +109,9 @@ export function HUD() {
             letterSpacing: 1, textTransform: 'uppercase',
           }}>
             {meta.label}
+          </span>
+          <span style={{ color: '#555', fontSize: 11 }}>
+            #{currentPuzzleIndex + 1}
           </span>
           <div style={divider} />
         </>
