@@ -276,7 +276,8 @@ export function Container({ container, placedShapes }: Props) {
         onPointerLeave={handlePointerLeave}
         onClick={handleClick}
       >
-        <boxGeometry args={[container.x + 1, container.y + 1, container.z + 1]} />
+        {/* Large enough to cover the full camera frustum at max zoom (~22 units out) */}
+        <boxGeometry args={[container.x + 20, container.y + 20, container.z + 20]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
