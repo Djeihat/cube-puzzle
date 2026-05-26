@@ -110,7 +110,10 @@ export function HUD() {
           }}>
             {meta.label}
           </span>
-          <span style={{ color: '#555', fontSize: 11 }}>
+          <span style={{
+            color: meta.color, fontSize: 11, fontWeight: 700,
+            letterSpacing: 1,
+          }}>
             #{currentPuzzleIndex + 1}
           </span>
           <div style={divider} />
