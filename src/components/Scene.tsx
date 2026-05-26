@@ -37,6 +37,24 @@ export function Scene() {
 
   const floorY = -cy - 1.2
 
+  // Floating preview: shown above the container when a piece is selected but not hovering
+  const floatingCubes = (!hoveredCell && shapeCubes) ? shapeCubes : null
+
+  // Center the floating piece above the container top
+  const floatingPos = floatingCubes ? (() => {
+    const minX = Math.min(...floatingCubes.map(c => c.x))
+    const maxX = Math.max(...floatingCubes.map(c => c.x))
+    const minY = Math.min(...floatingCubes.map(c => c.y))
+    const maxY = Math.max(...floatingCubes.map(c => c.y))
+    const minZ = Math.min(...floatingCubes.map(c => c.z))
+    const maxZ = Math.max(...floatingCubes.map(c => c.z))
+    const pcx = (minX + maxX) / 2 + 0.5
+    const pcy = (minY + maxY) / 2 + 0.5
+    const pcz = (minZ + maxZ) / 2 + 0.5
+    // Position piece centered (x,z) and floating above the container top (+2 gap)
+    return [-pcx, cy + 2 - pcy, -pcz] as [number, number, number]
+  })() : null
+
   // ── Turntable controls ───────────────────────────────────────────────────
   // The scene GROUP rotates in response to drag; the camera and lights stay
   // fixed in world-space so lighting never shifts from the viewer's perspective.
@@ -144,7 +162,7 @@ export function Scene() {
           placedShapes={placedShapes}
         />
 
-        {/* Ghost preview */}
+        {/* Snap ghost: shown when hovering over the container */}
         {classifiedGhost && (
           <group position={[-cx, -cy, -cz]}>
             {classifiedGhost.map(({ cube, conflict }) => (
@@ -153,6 +171,20 @@ export function Scene() {
                 position={cube}
                 color={conflict ? '#ff4444' : '#ffffff'}
                 opacity={conflict ? 0.40 : 0.55}
+              />
+            ))}
+          </group>
+        )}
+
+        {/* Floating ghost: shown above container when piece selected but not hovering */}
+        {floatingCubes && floatingPos && selectedShape && (
+          <group position={floatingPos}>
+            {floatingCubes.map(cube => (
+              <UnitCube
+                key={`float-${vec3Key(cube)}`}
+                position={cube}
+                color={selectedShape.color}
+                opacity={0.75}
               />
             ))}
           </group>

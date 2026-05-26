@@ -3,7 +3,6 @@ import { Scene } from './components/Scene'
 import { ShapeTray } from './components/ShapeTray'
 import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
-import { CursorPiece } from './components/CursorPiece'
 import { MenuScreen } from './components/MenuScreen'
 import { DifficultyScreen } from './components/DifficultyScreen'
 import { useGameStore } from './store'
@@ -24,7 +23,7 @@ export default function App() {
         height: '100vh',
         background: '#111827',
         position: 'relative',
-        cursor: holding ? 'none' : 'default',
+        cursor: 'default',
       }}
     >
       <Canvas
@@ -38,7 +37,6 @@ export default function App() {
       <RotationControls />
       <HUD />
       <Instructions holding={holding} won={won} />
-      <CursorPiece />
     </div>
   )
 }
@@ -58,7 +56,7 @@ function Instructions({ holding, won }: { holding: boolean; won: boolean }) {
     }}>
       {holding ? (
         <>
-          <div>Hover container to preview · Click to place</div>
+          <div>Hover container to snap & place · Click to place</div>
           <div>Q/E · W/S · A/D to rotate the piece</div>
           <div>Click piece in tray again to deselect</div>
         </>
