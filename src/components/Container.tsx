@@ -278,7 +278,8 @@ export function Container({ container, placedShapes }: Props) {
       >
         {/* Large enough to cover the full camera frustum at max zoom (~22 units out) */}
         <boxGeometry args={[container.x + 20, container.y + 20, container.z + 20]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        {/* BackSide so raycasting works when the camera is inside the large box */}
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.BackSide} />
       </mesh>
 
       {/* Empty cell visual hints — purely decorative, no raycasting */}
