@@ -172,11 +172,6 @@ export function Container({ container, placedShapes }: Props) {
     setHoveredCell(cellFromHit(e))
   }
 
-  function handlePointerLeave(e: ThreeEvent<PointerEvent>) {
-    e.stopPropagation()
-    setHoveredCell(null)
-  }
-
   function handleClick(e: ThreeEvent<MouseEvent>) {
     e.stopPropagation()
     if (drag.occurred) { drag.occurred = false; return }
@@ -266,7 +261,6 @@ export function Container({ container, placedShapes }: Props) {
       <mesh
         position={[cx, cy, cz]}
         onPointerMove={handlePointerMove}
-        onPointerLeave={handlePointerLeave}
         onClick={handleClick}
       >
         {/* Large enough to cover the full camera frustum at max zoom (~22 units out) */}
@@ -292,8 +286,10 @@ export function Container({ container, placedShapes }: Props) {
         </mesh>
       ))}
 
-      {/* Placed shapes — onClick handled here; PieceMesh stopPropagation prevents
-          the hit box click from also firing, so lifting stays accurate */}
+      {/* Placed shapes — onClick lifts the piece; onPointerMove updates the ghost
+          cell directly from the surface hit so the hit box (10 units away) never
+          gets a chance to compute a wrong cell. stopPropagation on both keeps
+          them cleanly isolated. */}
       {placedShapes.map(shape => (
         <PieceMesh
           key={shape.id}
@@ -302,6 +298,22 @@ export function Container({ container, placedShapes }: Props) {
           onClick={() => {
             if (drag.occurred) { drag.occurred = false; return }
             if (!useGameStore.getState().selectedShapeId) liftShape(shape.id)
+          }}
+          onPointerMove={(e) => {
+            e.stopPropagation()
+            if (!selectedShapeId) return
+            // e.object.parent is the container group <group position={[-cx,-cy,-cz]}>.
+            // Its local space has integer grid coords (0..container.x) — same frame
+            // that the ghost cubes use — so we can floor directly to get the cell.
+            const localPt = e.object.parent!.worldToLocal(e.point.clone())
+            const normal = (e as any).face?.normal ?? new THREE.Vector3(0, 1, 0)
+            const inset = localPt.clone().addScaledVector(normal, -0.1)
+            const raw = {
+              x: Math.max(0, Math.min(container.x - 1, Math.floor(inset.x))),
+              y: Math.max(0, Math.min(container.y - 1, Math.floor(inset.y))),
+              z: Math.max(0, Math.min(container.z - 1, Math.floor(inset.z))),
+            }
+            setHoveredCell(validCells ? findNearestValidCell(raw, validCells) : raw)
           }}
         />
       ))}

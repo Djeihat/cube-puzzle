@@ -38,6 +38,15 @@ export function Scene() {
   const floorY = -cy - 1.2
 
 
+  // Clear hoveredCell when cursor leaves the canvas (e.g. moves to the tray).
+  // The R3F onPointerLeave on the hit box was removed to avoid it firing when
+  // cursor moves over a placed piece, so we use the DOM event instead.
+  useEffect(() => {
+    const clear = () => useGameStore.getState().setHoveredCell(null)
+    domElement.addEventListener('pointerleave', clear)
+    return () => domElement.removeEventListener('pointerleave', clear)
+  }, [domElement])
+
   // ── Turntable controls ───────────────────────────────────────────────────
   // The scene GROUP rotates in response to drag; the camera and lights stay
   // fixed in world-space so lighting never shifts from the viewer's perspective.
