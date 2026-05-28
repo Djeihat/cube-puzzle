@@ -25,11 +25,31 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Exact container wireframe — boundary edges computed from the valid-cell set, not the bounding box
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — currently 1 per difficulty; target 3–5 per difficulty
+- More hand-authored puzzles — currently 1 per difficulty; target 10 per difficulty
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
 - Groove end-cap triangles — sub-pixel gaps where V-grooves terminate at piece ends; invisible at normal viewing distances
+
+---
+
+## Engineering Decisions
+
+### puzzle.ts coordinate refactor (2026-05-27)
+
+**Problem:** `puzzle.ts` grew to 1,042 lines because every cube position was written as a full object literal (`{ x: 0, y: 0, z: 0 }`). Reading the file consumed a large share of LLM context per session, making it expensive to add or edit puzzles and causing two sessions to exhaust their resource budget before useful work could be done.
+
+**Decision:** Introduce a compact coordinate constructor at the top of the file:
+
+```ts
+const c = (x: number, y: number, z: number): Vec3 => ({ x, y, z })
+```
+
+All cube arrays, `validCells` arrays, and container declarations throughout the file were converted to use `c()`. Internal arrow-function parameters that would have shadowed `c` were renamed to `p`. No types changed; no logic changed. TypeScript passed clean after the rewrite.
+
+**Result:** 1,042 → 631 lines (39% reduction). Future puzzle additions cost roughly one-third the context they did before.
+
+**Process note:** The refactor was done as a dedicated step before writing new medium puzzles, so that all new puzzle functions would be authored in the compact format from the start rather than requiring a second-pass conversion.
 
 ---
 
@@ -121,9 +141,11 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 
 ### Medium
 
-| # | Container | Pieces | Shape |
+| # | Container | Pieces | Shapes |
 |---|---|---|---|
-| 1 | 3×3 slab + 3-cell front wall, irregular (12 cells) | 3 × 4-cube | 2×2 square, L in y-z, 2×2 square in x-z |
+| 1 | Shelf — 2×4 base (2 layers) + 2×2 top shelf, irregular (20 cells) | 3+4+4+4+5 | L-triomino, tower, right-screw, 2×2 square, P-pentomino |
+| 2 | Steps — 3×4 base + 3×3 middle + 3-cell cap, irregular (24 cells) | 3+3+4+4+5+5 | I-triomino, L-triomino, 2×2 square, J-tetromino, 3-D pentomino, P-pentomino |
+| 3 | Tall shelf — 2×4 full (2 layers) + 2×3 upper (2 layers), irregular (28 cells) | 3+4+4+4+4+4+5 | L-triomino, 2×2 square, I-bar, L-tetromino, T-tetromino, right-screw, 3-D pentomino |
 
 ### Hard
 
