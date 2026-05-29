@@ -27,7 +27,7 @@ export function ShapePreview3D({ cubes, color }: Props) {
   return (
     <Canvas
       camera={{ position: [cx + dist, cy + dist * 0.7, cz + dist], fov: 40 }}
-      style={{ width: 120, height: 120, background: 'transparent' }}
+      style={{ width: 120, height: 120, background: 'transparent', pointerEvents: 'none' }}
       gl={{ alpha: true, antialias: true }}
       onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
     >
