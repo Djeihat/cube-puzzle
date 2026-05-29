@@ -23,9 +23,12 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Beveled piece geometry — B = 0.05 chamfer on all external edges; V-grooves at joins between adjacent cubes of the same piece
 - Turntable scene rotation — the scene group rotates on drag; camera and lights are fixed in world-space so lighting never shifts
 - Exact container wireframe — boundary edges computed from the valid-cell set, not the bounding box
+- Complete Easy puzzle library — 10 hand-authored puzzles across a range of piece counts (3–5 pieces) and container sizes
+- Medium puzzle library redesigned — 3 puzzles with 5, 6, and 7 pieces respectively; irregular containers sized 20–28 cells; all pieces within each puzzle are distinct free polycubes
+- Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — currently 1 per difficulty; target 10 per difficulty
+- More hand-authored puzzles — Easy complete (10/10); Medium at 3/10; Hard at 2/10
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
@@ -50,6 +53,22 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 **Result:** 1,042 → 631 lines (39% reduction). Future puzzle additions cost roughly one-third the context they did before.
 
 **Process note:** The refactor was done as a dedicated step before writing new medium puzzles, so that all new puzzle functions would be authored in the compact format from the start rather than requiring a second-pass conversion.
+
+### Medium puzzle redesign (2026-05-28)
+
+**Problem:** The original three medium puzzles each had only 3 pieces in 12-cell containers — barely harder than easy. Two also had duplicate pieces within the same puzzle (e.g. two 2×2 squares), which was an error. The small piece count meant the tray scrolling bug went unnoticed until puzzle 3 was built with 7 pieces.
+
+**Decision:** Redesign all three from scratch with a ramp in piece count (5 / 6 / 7) and larger irregular containers (20 / 24 / 28 cells). Rules: all pieces within a puzzle must be distinct free polycubes; container must be ≥ 2 cells wide in every axis; solutions verified cell-by-cell before coding. Mixed piece sizes (3-, 4-, and 5-cube) within each puzzle.
+
+**Result:** Puzzles 1–3 now offer a clear difficulty ramp within the Medium tier. The 7-piece puzzle also exposed and drove the fix for the tray overflow bug.
+
+### Piece tray scroll fix (2026-05-28)
+
+**Problem:** `ShapeTray` used `top: 50% / translateY(-50%)` with no height constraint. On Medium puzzle 3 (7 pieces × 120 px cards ≈ 1,100 px), pieces overflowed below the screen with no way to reach them.
+
+**Decision:** Two changes together:
+1. Re-anchor the tray to `top: 80px / bottom: 20px` (fixed vertical bounds) and add `overflow-y: auto` — browser enforces the height and handles scrolling natively.
+2. Add `pointerEvents: none` to the `<Canvas>` in `ShapePreview3D` — the WebGL canvas was absorbing wheel events, preventing scroll from reaching the tray container. `autoRotate` is animation-driven and needs no pointer input, so disabling pointer events has no visible effect.
 
 ---
 
@@ -94,6 +113,12 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 - Valid placement: white, semi-transparent flat cubes
 - Conflict (out of bounds or overlap): red, semi-transparent flat cubes
 
+### Piece tray
+- Fixed column on the left edge, anchored top: 80 px (below HUD) → bottom: 20 px
+- Scrolls vertically when pieces overflow the available height (native overflow-y: auto)
+- Thin blue-tinted scrollbar; fade gradient at the bottom when 5+ pieces are present
+- Canvas pointer-events disabled so mouse wheel scrolls the tray rather than being absorbed by WebGL
+
 ---
 
 ## Difficulty Tiers
@@ -135,9 +160,18 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 ### Easy
 
-| # | Container | Pieces | Shape |
+| # | Container | Pieces | Shapes |
 |---|---|---|---|
-| 1 | 3 × 2 × 2 rectangular (12 cells) | 3 × 4-cube | 3-D L, flat 2×2, flat L |
+| 1  | 3×2×2 rectangular (12 cells)  | 3×4-cube        | 3-D L, flat 2×2, flat L |
+| 2  | 2×2×3 rectangular (12 cells)  | 3×4-cube        | J in x-z, 3-D skew, L-shape |
+| 3  | 3×2×2 rectangular (12 cells)  | 4×3-cube        | L-corner, y-z corner, x-bar, x-z corner |
+| 4  | 3×2×3 rectangular (18 cells)  | 3+4+4+4+3       | x-bar, 2×2 x-z, L-shape, L-bar, corner |
+| 5  | 4×2×2 rectangular (16 cells)  | 4×4-cube        | 2×2 y-z, J-bar, L-bar, skew |
+| 6  | 4×2×2 rectangular (16 cells)  | 3+3+4+3+3       | y-z corner, x-z corner, J-bar, L-corner, corner |
+| 7  | 3×3×2 rectangular (18 cells)  | 5+4+5+4         | L-bar (×2), 2×2 square (×2) |
+| 8  | 4×2×3 rectangular (24 cells)  | 5+5+5+4+5       | L-bar (×3), L into z, 2×2 slab |
+| 9  | 2×3×3 rectangular (18 cells)  | 5+4+5+4         | 3-D S, L-corner, 2×2+arm, 2×2 square |
+| 10 | 4×3×2 rectangular (24 cells)  | 5+5+4+5+5       | L-bar, S-bar, 2×2 square, L-bar, S-bar |
 
 ### Medium
 
@@ -149,9 +183,10 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 ### Hard
 
-| # | Container | Pieces | Shape |
+| # | Container | Pieces | Shapes |
 |---|---|---|---|
-| 1 | Staircase — 3×2 base narrows to 2×2 top, irregular (16 cells) | 4 × 4-cube | L in x-y, 3-D corner, 3-D T, J in x-y |
+| 1 | Staircase — 3×2 base narrows to 2×2 top, irregular (16 cells) | 4×4-cube | L in x-y, 3-D corner, 3-D T, J in x-y |
+| 2 | 4×2×2 rectangular (16 cells) | 4×4-cube | I-bar, 3-D corner (×2), 2×2 square |
 
 ---
 
