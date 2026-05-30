@@ -47,38 +47,3 @@ export function getHardPuzzle(): Puzzle {
   ]
   return { container, validCells, shapes, solution }
 }
-
-/*
-  Hard 2 — 4×2×2 rectangular container (16 cells), four 4-cube pieces.
-
-  h2a (blue)   — I-bar:              (0,0,0),(1,0,0),(2,0,0),(3,0,0)
-  h2b (orange) — 3-D corner at x=0:  (0,1,0),(1,1,0),(0,0,1),(0,1,1)
-  h2c (green)  — 3-D corner at x=3:  (0,1,0),(1,1,0),(1,0,1),(1,1,1)
-  h2d (purple) — 2×2 slab middle:    (0,0,0),(1,0,0),(0,1,0),(1,1,0)
-
-  Solution:
-    h2a @ (0,0,0): (0,0,0),(1,0,0),(2,0,0),(3,0,0)
-    h2b @ (0,1,0): (0,1,0),(1,1,0),(0,0,1),(0,1,1)
-    h2c @ (2,1,0): (2,1,0),(3,1,0),(3,0,1),(3,1,1)
-    h2d @ (1,0,1): (1,0,1),(2,0,1),(1,1,1),(2,1,1)
-*/
-export function getHardPuzzle2(): Puzzle {
-  const container = c(4,2,2)
-  const shapes: PuzzleShape[] = [
-    { id: 'h2a', color: COLORS[0], rotation: [0,0,0], placed: false,
-      cubes: [c(0,0,0), c(1,0,0), c(2,0,0), c(3,0,0)] },
-    { id: 'h2b', color: COLORS[1], rotation: [0,0,0], placed: false,
-      cubes: [c(0,1,0), c(1,1,0), c(0,0,1), c(0,1,1)] },
-    { id: 'h2c', color: COLORS[2], rotation: [0,0,0], placed: false,
-      cubes: [c(0,1,0), c(1,1,0), c(1,0,1), c(1,1,1)] },
-    { id: 'h2d', color: COLORS[3], rotation: [0,0,0], placed: false,
-      cubes: [c(0,0,0), c(1,0,0), c(0,1,0), c(1,1,0)] },
-  ]
-  const solution: PlacedShape[] = [
-    { id: 'h2a', color: COLORS[0], cubes: [c(0,0,0), c(1,0,0), c(2,0,0), c(3,0,0)] },
-    { id: 'h2b', color: COLORS[1], cubes: [c(0,1,0), c(1,1,0), c(0,0,1), c(0,1,1)] },
-    { id: 'h2c', color: COLORS[2], cubes: [c(2,1,0), c(3,1,0), c(3,0,1), c(3,1,1)] },
-    { id: 'h2d', color: COLORS[3], cubes: [c(1,0,1), c(2,0,1), c(1,1,1), c(2,1,1)] },
-  ]
-  return { container, shapes, solution }
-}

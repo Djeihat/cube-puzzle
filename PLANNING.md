@@ -78,6 +78,14 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 **Result:** `puzzle.ts` reduced from 698 → 115 lines. Adding new medium puzzles now costs ~½ the context of the previous approach.
 
+### One-file-per-puzzle split (2026-05-30)
+
+**Problem:** `puzzle-medium.ts` grew to 419 lines with 8 puzzles and would reach ~520 lines at 10. Each new puzzle session read the entire file even though only the new function was being added. Piece distinctness checking required reading all existing piece shapes — a cost that grew linearly with the library.
+
+**Decision:** Split each puzzle function into its own file (`puzzle-medium-1.ts` through `puzzle-medium-8.ts`, `puzzle-hard-1.ts`, `puzzle-hard-2.ts`). Each file is ~45–55 lines: header imports, `COLORS`, `c` helper, comment block, export function. `puzzle.ts` imports each file with one line per puzzle. Piece distinctness for new puzzles is checked against the PLANNING.md shape table rather than reading code files.
+
+**Result:** Each file is self-contained and under 60 lines. Adding puzzle 9 only requires creating `puzzle-medium-9.ts` and adding one import/export/array line in `puzzle.ts`. Zero prior puzzle code needs to be read.
+
 ### Piece tray scroll fix (2026-05-28)
 
 **Problem:** `ShapeTray` used `top: 50% / translateY(-50%)` with no height constraint. On Medium puzzle 3 (7 pieces × 120 px cards ≈ 1,100 px), pieces overflowed below the screen with no way to reach them.

@@ -6,16 +6,17 @@ import {
   getEasyPuzzle7, getEasyPuzzle8, getEasyPuzzle9, getEasyPuzzle10,
 } from './puzzle-easy'
 
-import {
-  getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3,
-  getMediumPuzzle4, getMediumPuzzle5, getMediumPuzzle6,
-  getMediumPuzzle7,
-  getMediumPuzzle8,
-} from './puzzle-medium'
+import { getMediumPuzzle }  from './puzzle-medium-1'
+import { getMediumPuzzle2 } from './puzzle-medium-2'
+import { getMediumPuzzle3 } from './puzzle-medium-3'
+import { getMediumPuzzle4 } from './puzzle-medium-4'
+import { getMediumPuzzle5 } from './puzzle-medium-5'
+import { getMediumPuzzle6 } from './puzzle-medium-6'
+import { getMediumPuzzle7 } from './puzzle-medium-7'
+import { getMediumPuzzle8 } from './puzzle-medium-8'
 
-import {
-  getHardPuzzle, getHardPuzzle2,
-} from './puzzle-hard'
+import { getHardPuzzle }  from './puzzle-hard-1'
+import { getHardPuzzle2 } from './puzzle-hard-2'
 
 export type DifficultyKey = 'easy' | 'medium' | 'hard'
 
@@ -108,8 +109,7 @@ export {
   getEasyPuzzle7, getEasyPuzzle8, getEasyPuzzle9, getEasyPuzzle10,
   getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3,
   getMediumPuzzle4, getMediumPuzzle5, getMediumPuzzle6,
-  getMediumPuzzle7,
-  getMediumPuzzle8,
+  getMediumPuzzle7, getMediumPuzzle8,
   getHardPuzzle, getHardPuzzle2,
 }
 
@@ -125,8 +125,7 @@ export const PUZZLE_LIBRARY: Record<DifficultyKey, Array<() => Puzzle>> = {
   medium: [
     getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3,
     getMediumPuzzle4, getMediumPuzzle5, getMediumPuzzle6,
-    getMediumPuzzle7,
-    getMediumPuzzle8,
+    getMediumPuzzle7, getMediumPuzzle8,
   ],
   hard: [getHardPuzzle, getHardPuzzle2],
 }
