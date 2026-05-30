@@ -28,7 +28,7 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — Easy complete (10/10); Medium at 6/10; Hard at 2/10
+- More hand-authored puzzles — Easy complete (10/10); Medium at 7/10; Hard at 2/10
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
@@ -37,6 +37,14 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 ---
 
 ## Engineering Decisions
+
+### Puzzle validator script (2026-05-29)
+
+**Problem:** Manual cell-by-cell verification of puzzle solutions was slow and error-prone — counting 24 cells in three dimensions in a text editor, with no automated check. Two prior design sessions produced designs with isolated cells that only surfaced during manual review.
+
+**Decision:** Add `scripts/validate-puzzles.ts`, run with `npx vite-node`. For every puzzle in `PUZZLE_LIBRARY` it checks: (1) solution cells total matches container size, (2) no cell appears twice, (3) every cell is within `validCells` or container bounds, (4) each piece's cubes are connected. Exposed via `npm run validate`. Added to the end of the per-puzzle workflow: design → code → `npm run validate` → wire into `PUZZLE_LIBRARY` → update PLANNING.md → commit & push.
+
+**Result:** Validation of all 19 puzzles completes in ~1 second. Design errors that previously required 10+ minutes of manual checking are now caught immediately.
 
 ### puzzle.ts coordinate refactor (2026-05-27)
 
@@ -191,6 +199,7 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 | 4 | Notched slab — 3×4 base + partial upper (20 cells) | 4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, 2×2 square, 3-D screw |
 | 5 | Scattered slab — 4×4 base (11 cells) + upper shelf (9 cells), irregular (20 cells) | 4+4+4+4+4 | I-bar, T-tetromino, S-skew, L-tetromino, 2×2 square |
 | 6 | Wide slab — 4×3×3 bounding box, irregular (24 cells) | 4+4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, S-skew, 2×2 square, branch |
+| 7 | Top-narrowed cube — 3×3×3 bounding box, y=2 narrows to 2×3 (24 cells) | 4+4+4+4+4+4 | T-tetromino, S-skew, L-tetromino, branch, 2×2 square, right-screw |
 
 ### Hard
 
