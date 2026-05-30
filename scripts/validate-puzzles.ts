@@ -101,14 +101,25 @@ function validatePuzzle(puzzle: Puzzle, label: string): string[] {
 }
 
 // ── run ───────────────────────────────────────────────────────────────────────
+// Usage:
+//   npm run validate                  — all puzzles
+//   npm run validate -- medium        — all medium puzzles
+//   npm run validate -- medium 9      — medium puzzle #9 only
+
+const [filterDiff, filterNum] = process.argv.slice(2)
+const targetNum = filterNum ? parseInt(filterNum, 10) : null
 
 let allOk = true
+let ran = 0
 
 for (const [difficulty, factories] of Object.entries(PUZZLE_LIBRARY)) {
+  if (filterDiff && difficulty !== filterDiff) continue
   for (let i = 0; i < factories.length; i++) {
+    if (targetNum !== null && i + 1 !== targetNum) continue
     const label = `${difficulty} #${i + 1}`
     const puzzle = factories[i]()
     const errors = validatePuzzle(puzzle, label)
+    ran++
     if (errors.length === 0) {
       console.log(`✓  ${label}`)
     } else {
@@ -117,6 +128,11 @@ for (const [difficulty, factories] of Object.entries(PUZZLE_LIBRARY)) {
       for (const e of errors) console.error(`     ${e}`)
     }
   }
+}
+
+if (ran === 0) {
+  console.error(`No puzzles matched filter: ${filterDiff ?? ''}${targetNum ? ` #${targetNum}` : ''}`)
+  process.exit(1)
 }
 
 console.log(allOk ? '\nAll puzzles valid ✓' : '\nValidation FAILED ✗')
