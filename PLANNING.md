@@ -28,7 +28,7 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — Easy complete (10/10); Medium at 3/10; Hard at 2/10
+- More hand-authored puzzles — Easy complete (10/10); Medium at 6/10; Hard at 2/10
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
@@ -61,6 +61,14 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 **Decision:** Redesign all three from scratch with a ramp in piece count (5 / 6 / 7) and larger irregular containers (20 / 24 / 28 cells). Rules: all pieces within a puzzle must be distinct free polycubes; container must be ≥ 2 cells wide in every axis; solutions verified cell-by-cell before coding. Mixed piece sizes (3-, 4-, and 5-cube) within each puzzle.
 
 **Result:** Puzzles 1–3 now offer a clear difficulty ramp within the Medium tier. The 7-piece puzzle also exposed and drove the fix for the tray overflow bug.
+
+### puzzle.ts file split (2026-05-29)
+
+**Problem:** `puzzle.ts` shrank to 698 lines after the coordinate refactor, but still contained all puzzle functions for all three difficulty tiers. Reading the full file cost significant LLM context per session when adding new puzzles, and the file would grow again as Medium and Hard libraries expand toward 10 puzzles each.
+
+**Decision:** Move puzzle functions into three per-difficulty files (`puzzle-easy.ts`, `puzzle-medium.ts`, `puzzle-hard.ts`). Each file is self-contained with its own `COLORS` and `c` helper. `puzzle.ts` becomes a ~115-line hub that owns all utility functions, `DifficultyKey`, `DIFFICULTY_META`, re-exports puzzle functions, and maintains `PUZZLE_LIBRARY`. Future sessions adding Medium puzzles only need to read `puzzle-medium.ts` (~300 lines and growing); they never need to touch the easy or hard files.
+
+**Result:** `puzzle.ts` reduced from 698 → 115 lines. Adding new medium puzzles now costs ~½ the context of the previous approach.
 
 ### Piece tray scroll fix (2026-05-28)
 
@@ -180,6 +188,9 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 | 1 | Shelf — 2×4 base (2 layers) + 2×2 top shelf, irregular (20 cells) | 3+4+4+4+5 | L-triomino, tower, right-screw, 2×2 square, P-pentomino |
 | 2 | Steps — 3×4 base + 3×3 middle + 3-cell cap, irregular (24 cells) | 3+3+4+4+5+5 | I-triomino, L-triomino, 2×2 square, J-tetromino, 3-D pentomino, P-pentomino |
 | 3 | Tall shelf — 2×4 full (2 layers) + 2×3 upper (2 layers), irregular (28 cells) | 3+4+4+4+4+4+5 | L-triomino, 2×2 square, I-bar, L-tetromino, T-tetromino, right-screw, 3-D pentomino |
+| 4 | Notched slab — 3×4 base + partial upper (20 cells) | 4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, 2×2 square, 3-D screw |
+| 5 | Scattered slab — 4×4 base (11 cells) + upper shelf (9 cells), irregular (20 cells) | 4+4+4+4+4 | I-bar, T-tetromino, S-skew, L-tetromino, 2×2 square |
+| 6 | Wide slab — 4×3×3 bounding box, irregular (24 cells) | 4+4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, S-skew, 2×2 square, branch |
 
 ### Hard
 
