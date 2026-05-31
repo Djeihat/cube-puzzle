@@ -28,7 +28,7 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — Easy complete (10/10); Medium at 8/10; Hard at 2/10
+- More hand-authored puzzles — Easy complete (10/10); Medium at 9/10; Hard at 2/10
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
@@ -209,6 +209,7 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 | 6 | Wide slab — 4×3×3 bounding box, irregular (24 cells) | 4+4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, S-skew, 2×2 square, branch |
 | 7 | Top-narrowed cube — 3×3×3 bounding box, y=2 narrows to 2×3 (24 cells) | 4+4+4+4+4+4 | T-tetromino, S-skew, L-tetromino, branch, 2×2 square, right-screw |
 | 8 | L-corner slab — 4×2×4 bounding box, far corner (x≥2,z≥2) removed (24 cells) | 4+4+4+4+4+4 | I-bar, T-tetromino, branch, 2×2 square, L-tetromino, right-screw |
+| 9 | Stepped slab — 4×2×4 bounding box, y=1 layer is x=0..2 only (28 cells) | 4+4+4+4+4+4+4 | I-bar, 2×2 square, T-tetromino, right-screw, branch, L-tetromino, S-skew |
 
 ### Hard
 

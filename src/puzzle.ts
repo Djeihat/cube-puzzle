@@ -14,6 +14,7 @@ import { getMediumPuzzle5 } from './puzzle-medium-5'
 import { getMediumPuzzle6 } from './puzzle-medium-6'
 import { getMediumPuzzle7 } from './puzzle-medium-7'
 import { getMediumPuzzle8 } from './puzzle-medium-8'
+import { getMediumPuzzle9 } from './puzzle-medium-9'
 
 import { getHardPuzzle }  from './puzzle-hard-1'
 import { getHardPuzzle2 } from './puzzle-hard-2'
@@ -109,7 +110,7 @@ export {
   getEasyPuzzle7, getEasyPuzzle8, getEasyPuzzle9, getEasyPuzzle10,
   getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3,
   getMediumPuzzle4, getMediumPuzzle5, getMediumPuzzle6,
-  getMediumPuzzle7, getMediumPuzzle8,
+  getMediumPuzzle7, getMediumPuzzle8, getMediumPuzzle9,
   getHardPuzzle, getHardPuzzle2,
 }
 
@@ -125,7 +126,7 @@ export const PUZZLE_LIBRARY: Record<DifficultyKey, Array<() => Puzzle>> = {
   medium: [
     getMediumPuzzle, getMediumPuzzle2, getMediumPuzzle3,
     getMediumPuzzle4, getMediumPuzzle5, getMediumPuzzle6,
-    getMediumPuzzle7, getMediumPuzzle8,
+    getMediumPuzzle7, getMediumPuzzle8, getMediumPuzzle9,
   ],
   hard: [getHardPuzzle, getHardPuzzle2],
 }
