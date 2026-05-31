@@ -208,7 +208,7 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 | 5 | Scattered slab — 4×4 base (11 cells) + upper shelf (9 cells), irregular (20 cells) | 4+4+4+4+4 | I-bar, T-tetromino, S-skew, L-tetromino, 2×2 square |
 | 6 | Wide slab — 4×3×3 bounding box, irregular (24 cells) | 4+4+4+4+4+4 | I-bar, L-tetromino, T-tetromino, S-skew, 2×2 square, branch |
 | 7 | Top-narrowed cube — 3×3×3 bounding box, y=2 narrows to 2×3 (24 cells) | 4+4+4+4+4+4 | T-tetromino, S-skew, L-tetromino, branch, 2×2 square, right-screw |
-| 8 | Front-narrowed cube — 3×3×3 bounding box, z=0 narrows to 2×3 (24 cells) | 4+4+4+4+4+4 | branch, T-tetromino, 2×2 square, right-screw, S-skew, L-tetromino |
+| 8 | L-corner slab — 4×2×4 bounding box, far corner (x≥2,z≥2) removed (24 cells) | 4+4+4+4+4+4 | I-bar, T-tetromino, branch, 2×2 square, L-tetromino, right-screw |
 
 ### Hard
 
