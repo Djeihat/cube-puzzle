@@ -19,7 +19,7 @@ const BINDINGS = [
 ]
 
 export function RotationControls() {
-  const { selectedShapeId, rotateSelected, puzzle } = useGameStore()
+  const { selectedShapeId, rotateSelected, selectShape, puzzle } = useGameStore()
   const selected = puzzle.shapes.find(s => s.id === selectedShapeId && !s.placed)
 
   useEffect(() => {
@@ -27,6 +27,7 @@ export function RotationControls() {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'Escape') { e.preventDefault(); selectShape(null); return }
       const binding = KEY_MAP[e.key.toLowerCase()]
       if (!binding) return
       e.preventDefault()
@@ -35,7 +36,7 @@ export function RotationControls() {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected, rotateSelected])
+  }, [selected, rotateSelected, selectShape])
 
   if (!selected) return null
 
@@ -81,20 +82,29 @@ export function RotationControls() {
           </span>
         </div>
       ))}
+
+      <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 4px' }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <KeyCap label="Esc" color="#888" wide />
+        <span style={{ color: '#888', fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
+          Drop
+        </span>
+      </div>
     </div>
   )
 }
 
-function KeyCap({ label, color }: { label: string; color: string }) {
+function KeyCap({ label, color, wide }: { label: string; color: string; wide?: boolean }) {
   return (
     <div style={{
-      width: 26,
+      width: wide ? 40 : 26,
       height: 26,
       borderRadius: 6,
       border: `1px solid ${color}44`,
       background: `${color}16`,
       color,
-      fontSize: 12,
+      fontSize: wide ? 10 : 12,
       fontWeight: 700,
       display: 'flex',
       alignItems: 'center',
