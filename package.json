@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "validate": "vite-node scripts/validate-puzzles.ts"
+    "validate": "vite-node scripts/validate-puzzles.ts",
+    "solve": "vite-node scripts/solve-puzzle.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

@@ -38,6 +38,14 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 
 ## Engineering Decisions
 
+### Puzzle solver script (2026-05-30)
+
+**Problem:** Designing a valid solution by hand required reasoning through a 3D grid mentally — multiple attempts per puzzle due to isolated cells, disconnected regions, and cell count mismatches. Each failed attempt consumed significant output tokens with no reusable artifact.
+
+**Decision:** Add `scripts/solve-puzzle.ts` (`npm run solve`). Given a container (list of valid cells) and a piece list, it precomputes all unique rotations and valid placements of each piece, then uses backtracking with first-uncovered-cell pruning to find a solution in milliseconds. Outputs `shapes[]` and `solution[]` code blocks ready to paste into the puzzle file. The per-puzzle workflow becomes: define container in CONFIG → `npm run solve` → paste output → `npm run validate -- medium N` → commit.
+
+**Result:** Solver finds solutions in 10–100ms for 28-cell puzzles with 7 tetracubes. Manual solution design is eliminated entirely.
+
 ### Puzzle validator script (2026-05-29)
 
 **Problem:** Manual cell-by-cell verification of puzzle solutions was slow and error-prone — counting 24 cells in three dimensions in a text editor, with no automated check. Two prior design sessions produced designs with isolated cells that only surfaced during manual review.
