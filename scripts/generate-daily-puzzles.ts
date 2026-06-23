@@ -169,6 +169,31 @@ function extractJSON(text: string): any {
 const COLORS = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12']
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
+// ── configs ───────────────────────────────────────────────────────────────────
+// Pre-determined (pieceCount × cubesEach) combos remove all arithmetic from
+// Claude. We tell it exactly how many cubes per piece; it only needs to design
+// shapes, not verify sums.
+
+const PIECE_CONFIGS: Record<DifficultyKey, Array<{ pieces: number; cubesEach: number }>> = {
+  easy:   [
+    { pieces: 3, cubesEach: 4 },   // 12 cells
+    { pieces: 4, cubesEach: 3 },   // 12 cells
+    { pieces: 4, cubesEach: 4 },   // 16 cells
+    { pieces: 3, cubesEach: 5 },   // 15 cells
+  ],
+  medium: [
+    { pieces: 5, cubesEach: 4 },   // 20 cells
+    { pieces: 6, cubesEach: 4 },   // 24 cells
+    { pieces: 5, cubesEach: 5 },   // 25 cells
+    { pieces: 6, cubesEach: 3 },   // 18 cells
+  ],
+  hard:   [
+    { pieces: 7, cubesEach: 4 },   // 28 cells
+    { pieces: 8, cubesEach: 4 },   // 32 cells
+    { pieces: 7, cubesEach: 5 },   // 35 cells
+  ],
+}
+
 // ── prompts ───────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You design 3D polycube puzzles where pieces pack perfectly into a container.
@@ -179,64 +204,49 @@ Two cells are face-adjacent when they differ by exactly 1 in exactly one axis (n
 RULES:
 1. Each piece is a connected set of face-adjacent cubes.
 2. Normalize each piece: shift so min(x) = min(y) = min(z) = 0.
-3. Total cubes across ALL pieces must equal the number of valid container cells exactly.
-4. The container must be at least 2 cells wide in every axis (x ≥ 2, y ≥ 2, z ≥ 2).
-5. All pieces must be distinct (no two pieces have the same shape after rotation/reflection).
+3. The container must be at least 2 cells wide in every axis (x ≥ 2, y ≥ 2, z ≥ 2).
+4. All pieces must be distinct shapes (no two pieces look the same after rotation/reflection).
 
-OUTPUT: Valid JSON only — no prose, no markdown fences.`
+OUTPUT: Valid JSON only — no prose, no markdown fences, nothing after the closing brace.`
 
-const DIFFICULTY_CONFIG: Record<DifficultyKey, {
-  pieces: string, container: string, format: string, extra: string
-}> = {
-  easy: {
-    pieces: '3 or 4 pieces, each with 3 to 5 cubes',
-    container: 'a rectangular box (just set "container" to the bounding box — no "validCells" needed)',
-    format: `{
-  "container": {"x": N, "y": N, "z": N},
-  "pieces": [{"name": "name", "cubes": [{"x":0,"y":0,"z":0}, ...]}, ...]
-}`,
-    extra: 'Make it approachable. Simple, recognisable piece shapes (L, T, I, square).',
-  },
-  medium: {
-    pieces: '5 or 6 pieces, each with 3 to 5 cubes',
-    container: 'an irregular shape (include "validCells" listing every valid cell position)',
-    format: `{
-  "container": {"x": N, "y": N, "z": N},
-  "validCells": [{"x":0,"y":0,"z":0}, ...],
-  "pieces": [{"name": "name", "cubes": [{"x":0,"y":0,"z":0}, ...]}, ...]
-}`,
-    extra: 'The irregular container should have cells removed from a corner, edge, or side to create an interesting shape. Include a mix of 3D and flat pieces.',
-  },
-  hard: {
-    pieces: '7 or 8 pieces, each with 3 to 5 cubes',
-    container: 'a complex irregular shape (include "validCells" listing every valid cell position)',
-    format: `{
-  "container": {"x": N, "y": N, "z": N},
-  "validCells": [{"x":0,"y":0,"z":0}, ...],
-  "pieces": [{"name": "name", "cubes": [{"x":0,"y":0,"z":0}, ...]}, ...]
-}`,
-    extra: 'The container should have a distinctive 3D shape (steps, notches, an L or T footprint). Include several 3D pieces (pieces that span all three axes).',
-  },
-}
+function buildUserPrompt(
+  difficulty: DifficultyKey,
+  date: string,
+  attempt: number,
+  cfg: { pieces: number; cubesEach: number },
+): string {
+  const total = cfg.pieces * cfg.cubesEach
+  const isEasy = difficulty === 'easy'
+  const containerDesc = isEasy
+    ? 'a rectangular box — set "container" to its dimensions, omit "validCells"'
+    : 'an irregular shape — include "validCells" listing every valid cell'
 
-function buildUserPrompt(difficulty: DifficultyKey, date: string, attempt: number): string {
-  const cfg = DIFFICULTY_CONFIG[difficulty]
-  return `Design a ${difficulty.toUpperCase()} polycube puzzle for ${date}${attempt > 0 ? ` (retry ${attempt} — use a completely different design)` : ''}.
+  return `Design a ${difficulty.toUpperCase()} polycube puzzle for ${date}${attempt > 0 ? ` (attempt ${attempt + 1} — use a completely different design)` : ''}.
 
-SPECS:
-- Pieces: ${cfg.pieces}
-- Container: ${cfg.container}
-- ${cfg.extra}
+EXACT REQUIREMENTS (do not change these numbers):
+- Pieces: exactly ${cfg.pieces} pieces
+- Cubes per piece: exactly ${cfg.cubesEach} cubes each
+- Container cells: exactly ${total}  (= ${cfg.pieces} × ${cfg.cubesEach})
+
+CONTAINER: ${containerDesc}
+${isEasy ? '' : 'Remove some cells from a corner or edge to create an interesting non-rectangular shape.'}
 
 FORMAT:
-${cfg.format}
+{
+  "container": {"x": N, "y": N, "z": N},${isEasy ? '' : '\n  "validCells": [{"x":0,"y":0,"z":0}, ...],'}
+  "pieces": [
+    {"name": "descriptive-name", "cubes": [{"x":0,"y":0,"z":0}, ...]},
+    ... (exactly ${cfg.pieces} pieces, each with exactly ${cfg.cubesEach} cubes)
+  ]
+}
 
-BEFORE RESPONDING, VERIFY:
-✓ Sum of piece cube counts = number of valid container cells
-✓ Every piece is face-connected (no diagonal neighbours)
-✓ Every piece is normalised (min x = min y = min z = 0)
-✓ Container axes are all ≥ 2
-✓ All pieces have distinct shapes`
+CHECKLIST:
+✓ Exactly ${cfg.pieces} pieces in the "pieces" array
+✓ Each piece has exactly ${cfg.cubesEach} cubes — count them
+✓ Container has exactly ${total} valid cells — count them
+✓ Each piece is face-connected (adjacent cells differ by 1 in one axis only)
+✓ Each piece is normalised: min(x) = min(y) = min(z) = 0
+✓ All piece shapes are distinct`
 }
 
 // ── generation ────────────────────────────────────────────────────────────────
@@ -247,9 +257,14 @@ async function generatePuzzle(
   date: string,
 ): Promise<object> {
   const MAX_ATTEMPTS = 6
+  const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    process.stdout.write(`  attempt ${attempt + 1}/${MAX_ATTEMPTS} ... `)
+    // Rotate through configs so each retry tries a different piece/cube combo
+    const cfg = configs[attempt % configs.length]
+    const expectedTotal = cfg.pieces * cfg.cubesEach
+
+    process.stdout.write(`  attempt ${attempt + 1}/${MAX_ATTEMPTS} (${cfg.pieces}p×${cfg.cubesEach}c=${expectedTotal}) ... `)
 
     // Call Claude
     let raw: any
@@ -258,7 +273,7 @@ async function generatePuzzle(
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: buildUserPrompt(difficulty, date, attempt) }],
+        messages: [{ role: 'user', content: buildUserPrompt(difficulty, date, attempt, cfg) }],
       })
       raw = extractJSON(msg.content[0].type === 'text' ? msg.content[0].text : '')
     } catch (err) {
@@ -273,22 +288,33 @@ async function generatePuzzle(
 
     const validSet = new Set(validCells.map(key))
 
-    // Pre-validate: cell count
-    const totalPieceCells = (raw.pieces as any[]).reduce((n: number, p: any) => n + p.cubes.length, 0)
-    if (totalPieceCells !== validCells.length) {
-      console.log(`cell count mismatch (pieces ${totalPieceCells} ≠ container ${validCells.length})`)
+    // Validate: container cell count must match what we asked for
+    if (validCells.length !== expectedTotal) {
+      console.log(`container has ${validCells.length} cells, expected ${expectedTotal}`)
       continue
     }
 
-    // Pre-validate: piece connectivity
+    // Validate: piece count and per-piece cube count
+    const pieces = raw.pieces as any[]
+    if (pieces.length !== cfg.pieces) {
+      console.log(`got ${pieces.length} pieces, expected ${cfg.pieces}`)
+      continue
+    }
+    const wrongSize = pieces.find((p: any) => p.cubes.length !== cfg.cubesEach)
+    if (wrongSize) {
+      console.log(`piece "${wrongSize.name}" has ${wrongSize.cubes.length} cubes, expected ${cfg.cubesEach}`)
+      continue
+    }
+
+    // Validate: piece connectivity
     let ok = true
-    for (const p of raw.pieces as any[]) {
+    for (const p of pieces) {
       const cubes: Vec3[] = p.cubes.map((c: any) => ({ x: c.x, y: c.y, z: c.z }))
       if (!isConnected(cubes)) { console.log(`piece "${p.name}" not connected`); ok = false; break }
     }
     if (!ok) continue
 
-    // Pre-validate: container dimensions
+    // Validate: container dimensions ≥ 2 on every axis
     const ctr = raw.container
     if (ctr.x < 2 || ctr.y < 2 || ctr.z < 2) {
       console.log(`container too thin: ${ctr.x}×${ctr.y}×${ctr.z}`)
