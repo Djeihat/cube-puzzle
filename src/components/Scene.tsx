@@ -26,6 +26,7 @@ export function Scene() {
   const ghostCubesRef    = useRef<Vec3[] | null>(null)
   const containerHalfRef = useRef({ cx: 0, cy: 0, cz: 0 })
   const ghostDragging    = useRef(false)
+  const isMobileRef      = useRef(isMobile)
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -102,9 +103,10 @@ export function Scene() {
     ? ghostCubes.map(cube => ({ cube, conflict: false }))
     : null
 
-  // Keep refs current so the DOM-level turntable handler can raycast against them
+  // Keep refs current so the DOM-level turntable handler can read them
   ghostCubesRef.current    = ghostCubes
   containerHalfRef.current = { cx, cy, cz }
+  isMobileRef.current      = isMobile
 
   const floorY = -cy - 1.2
 
@@ -149,11 +151,11 @@ export function Scene() {
         return
       }
 
-      // If the pointer lands on the ghost piece, enter ghost-drag mode instead
-      // of rotating the scene. We raycast against the ghost cube positions
-      // directly in the DOM handler — no R3F event ordering dependency.
+      // On mobile only: if the pointer lands on the ghost piece, enter ghost-drag
+      // mode instead of rotating the scene. On desktop the ghost follows the cursor
+      // so the raycast would always hit — rotation is handled by turntable as normal.
       const cubes = ghostCubesRef.current
-      if (cubes && groupRef.current) {
+      if (cubes && groupRef.current && isMobileRef.current) {
         const rect = domElement.getBoundingClientRect()
         raycasterRef.current.setFromCamera(
           new THREE.Vector2(
