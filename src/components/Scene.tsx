@@ -112,6 +112,7 @@ export function Scene() {
 
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0) return
+      if (useGameStore.getState().selectedShapeId) return  // piece held — drag moves ghost, not scene
       active  = true
       drag.occurred = false
       startX = lastX = e.clientX

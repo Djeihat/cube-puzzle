@@ -297,10 +297,11 @@ interface Props {
   opacity?: number
   castShadow?: boolean
   onClick?: () => void
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void
   onPointerMove?: (e: ThreeEvent<PointerEvent>) => void
 }
 
-export function PieceMesh({ cubes, color, opacity = 1, castShadow = true, onClick, onPointerMove }: Props) {
+export function PieceMesh({ cubes, color, opacity = 1, castShadow = true, onClick, onPointerDown, onPointerMove }: Props) {
   const geo = useMemo(() => buildBeveledGeometry(cubes), [cubes])
 
   useEffect(() => () => geo.dispose(), [geo])
@@ -315,6 +316,7 @@ export function PieceMesh({ cubes, color, opacity = 1, castShadow = true, onClic
       geometry={geo}
       castShadow={castShadow}
       onClick={onClick ? handleClick : undefined}
+      onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
     >
       <meshStandardMaterial
