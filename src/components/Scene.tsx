@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { useGameStore } from '../store'
 import { Container } from './Container'
 import { UnitCube } from './UnitCube'
-import { applyRotation, normalizeShape, addOffset, placementOffset, cubesInBounds, cubesOverlap, vec3Key } from '../puzzle'
+import { applyRotation, normalizeShape, addOffset, placementOffset, vec3Key } from '../puzzle'
 import { drag } from '../dragState'
 import type { Vec3 } from '../types'
 
@@ -87,22 +87,8 @@ export function Scene() {
   const offset = ghostCell && shapeCubes ? placementOffset(shapeCubes, ghostCell) : null
   const ghostCubes = offset && shapeCubes ? addOffset(shapeCubes, offset) : null
 
-  const occupied = placedShapes.flatMap(p => p.cubes)
-  const { x: bx, y: by, z: bz } = puzzle.container
   const classifiedGhost = ghostCubes
-    ? ghostCubes.map(cube => {
-        // Only flag as conflict when the cube is inside the container bounding
-        // box. A ghost floating above/outside shows white (held, not placed)
-        // rather than red (which reads as an error).
-        const inBox = cube.x >= 0 && cube.x < bx && cube.y >= 0 && cube.y < by && cube.z >= 0 && cube.z < bz
-        return {
-          cube,
-          conflict: inBox && (
-            !cubesInBounds([cube], puzzle.container, puzzle.validCells) ||
-            cubesOverlap([cube], occupied)
-          ),
-        }
-      })
+    ? ghostCubes.map(cube => ({ cube, conflict: false }))
     : null
 
   const floorY = -cy - 1.2
@@ -141,7 +127,6 @@ export function Scene() {
         return
       }
 
-      if (useGameStore.getState().selectedShapeId) return  // piece held — drag moves ghost
       active = true
       drag.occurred = false
       startX = lastX = e.clientX
@@ -179,19 +164,6 @@ export function Scene() {
     }
 
     function onPointerUp(e: PointerEvent) {
-      // Touch placement: fires before pointerleave clears hoveredCell, so
-      // the current hovered cell is still available here.
-      if (e.pointerType === 'touch') {
-        const state = useGameStore.getState()
-        if (state.selectedShapeId && state.hoveredCell) {
-          const shape = state.puzzle.shapes.find(s => s.id === state.selectedShapeId && !s.placed)
-          if (shape) {
-            const sc = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
-            state.placeShape(state.selectedShapeId, placementOffset(sc, state.hoveredCell))
-          }
-        }
-      }
-
       ptrs.delete(e.pointerId)
       if (ptrs.size < 2) pinchDist = 0
       active = false
