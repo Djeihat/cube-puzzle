@@ -247,12 +247,31 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 ---
 
-## V2 Roadmap
+## Daily Puzzle Generation (current priority)
 
-### AI puzzle generation
-- Use Claude API to generate polycube shapes + containers at target difficulty
-- Verify puzzle is solvable (backtracking solver) before serving
-- Store puzzles in a backend; serve fresh ones as player progresses
+Each difficulty gets a brand-new AI-generated puzzle every day — no cycling.
+
+### Architecture: GitHub Action + static JSON
+- A scheduled GitHub Action runs nightly
+- Calls Claude API to generate Easy / Medium / Hard puzzles for the next date
+- Validates each puzzle with the backtracking solver before writing
+- Commits result to `public/daily-puzzles.json` → triggers GitHub Pages rebuild
+- Client fetches the JSON on load; caches in localStorage for offline play
+- No backend infrastructure required; no user accounts needed
+
+### Progress tracking
+- Solved state, streaks, and hint counts stored in `localStorage` keyed by device
+- No cross-device sync (accepted trade-off; same model as early Wordle)
+
+### Generation pipeline
+1. Claude generates a container shape + piece list for the target difficulty
+2. Backtracking solver finds a valid solution (rather than asking Claude to supply one)
+3. If no solution found within a timeout, retry with a different container
+4. Valid puzzle written to JSON
+
+---
+
+## V2 Roadmap
 
 ### Smart hints
 - Directional nudges ("try rotating the blue piece 90° on the Y axis") rather than revealing the solution position outright
@@ -261,22 +280,9 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 - Track solve time, hint usage, retry count per puzzle
 - Adapt next puzzle selection based on performance signal
 
-### Puzzle archive (paying members)
-- Paying members can replay any past daily puzzle by date
-- **V1 constraint:** daily puzzle selection uses `dayIndex % puzzleCount` (modular arithmetic). This mapping is only stable if puzzles are never reordered or removed — adding new puzzles to the end is safe. A proper archive requires the backend to freeze the `date → puzzle_id` mapping on the day it is first served; otherwise reordering would silently change what puzzle a past date resolves to.
-- **V1 design choice that enables this:** `getDailyIndex(difficulty, dateString)` accepts an explicit date parameter rather than using today's date internally. Archive lookups pass a historical date; today's puzzle passes today's date. No signature change needed when archive ships.
-- Paywalled: requires user accounts and payment integration (see Backend below)
-
-### Monetisation (post-V1)
+### Monetisation
 - 5 free hints per puzzle; earn extras via clean solves / streaks
 - Additional hints purchasable individually
 
-### Mobile
-- Touch controls for piece selection and rotation
-- Pinch-to-zoom for camera
-- Tap-to-place
-
-### Backend
-- User accounts, puzzle history, streak tracking
-- Solved state persists across sessions
-- Leaderboards (optional)
+### Post-acquisition considerations
+- Puzzle archive, user accounts, leaderboards, cross-device sync — deferred to acquirer
