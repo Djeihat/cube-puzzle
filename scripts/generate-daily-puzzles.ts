@@ -143,9 +143,25 @@ function isConnected(cubes: Vec3[]): boolean {
 }
 
 function extractJSON(text: string): any {
-  const match = text.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('No JSON object found in response')
-  return JSON.parse(match[0])
+  // Find the first '{' then walk forward counting braces to find the matching '}'.
+  // This correctly handles trailing prose or extra {} that a model may append.
+  const start = text.indexOf('{')
+  if (start === -1) throw new Error('No JSON object found in response')
+
+  let depth = 0
+  let inString = false
+  let escape = false
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (escape)              { escape = false; continue }
+    if (ch === '\\' && inString) { escape = true;  continue }
+    if (ch === '"')          { inString = !inString; continue }
+    if (inString)            continue
+    if (ch === '{') depth++
+    if (ch === '}') { depth--; if (depth === 0) return JSON.parse(text.slice(start, i + 1)) }
+  }
+  throw new Error('No complete JSON object found in response')
 }
 
 // ── output formatting ─────────────────────────────────────────────────────────
