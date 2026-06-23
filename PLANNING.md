@@ -28,7 +28,7 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 - Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
 
 **Remaining before V1 is called done**
-- More hand-authored puzzles — Easy complete (10/10); Medium at 10/10; Hard at 2/10
+- Hard puzzle library — current 2 puzzles have 4 pieces each (below the 8–10 target); both need complete redesign plus 8 more puzzles to reach 10/10
 - Update puzzle metadata/names as library grows
 
 **Deferred polish**
@@ -155,6 +155,13 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 ## Difficulty Tiers
 
+### Piece counts
+| Tier | Pieces per puzzle |
+|---|---|
+| Easy | 3–5 |
+| Medium | 6–7 |
+| Hard | 8–10 |
+
 ### Container shapes
 | Tier | Container |
 |---|---|
@@ -172,8 +179,8 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 ### Piece orientations allowed
 | Tier | Rule |
 |---|---|
-| Easy / Medium | Rotations + reflections (48 total) |
-| Hard | Rotations only (24 orientations) |
+| Easy / Medium | Rotations + reflections (free tetracubes — 7 distinct) |
+| Hard | Rotations only (right-screw ≠ left-screw — 8 distinct tetracubes) |
 
 ---
 

@@ -136,14 +136,18 @@ function solve(pieces: Piece[], validCells: Vec3[], maxSolutions: number): Place
 
 // ── piece library ─────────────────────────────────────────────────────────────
 
+// ── Easy / Medium pieces (free tetracubes — reflections allowed) ──────────────
+// Under "free" rules, L=J, S=Z, and right-screw=left-screw (7 distinct total).
+// Under "rotations only" (hard mode), right-screw ≠ left-screw (8 distinct total).
 const PIECE_DEFS: Record<string, Vec3[]> = {
-  'I-bar':       [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0)],
-  'O-square':    [c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0)],
-  'T-tetromino': [c(0,0,0),c(1,0,0),c(2,0,0),c(1,1,0)],
-  'L-tetromino': [c(0,0,0),c(1,0,0),c(2,0,0),c(2,1,0)],
-  'S-skew':      [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0)],
-  'right-screw': [c(0,0,0),c(1,0,0),c(1,1,0),c(1,1,1)],
-  'branch':      [c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1)],
+  'I-bar':        [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0)],
+  'O-square':     [c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0)],
+  'T-tetromino':  [c(0,0,0),c(1,0,0),c(2,0,0),c(1,1,0)],
+  'L-tetromino':  [c(0,0,0),c(1,0,0),c(2,0,0),c(2,1,0)],
+  'S-skew':       [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0)],
+  'right-screw':  [c(0,0,0),c(1,0,0),c(1,1,0),c(1,1,1)],
+  'left-screw':   [c(0,0,0),c(1,0,0),c(1,0,1),c(1,1,1)],  // chiral mirror of right-screw (hard only)
+  'branch':       [c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1)],
 }
 
 // ── output ────────────────────────────────────────────────────────────────────
@@ -194,15 +198,20 @@ const CONFIG = {
 
   // Container valid cells — define the shape here
   validCells: [
-    // Example: 4×2×4 minus back-right quarter (same as puzzle 9 — replace with new shape)
+    // Staircase prism — 4×3×4 bounding box
+    // Side profile (any z slice): full row at y=0, half at y=1, single at y=2
+    // y=0: full 4×4 = 16 cells
     c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
     c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
     c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
     c(0,0,3),c(1,0,3),c(2,0,3),c(3,0,3),
-    c(0,1,0),c(1,1,0),c(2,1,0),
-    c(0,1,1),c(1,1,1),c(2,1,1),
-    c(0,1,2),c(1,1,2),c(2,1,2),
-    c(0,1,3),c(1,1,3),c(2,1,3),
+    // y=1: x=0..1 only = 8 cells
+    c(0,1,0),c(1,1,0),
+    c(0,1,1),c(1,1,1),
+    c(0,1,2),c(1,1,2),
+    c(0,1,3),c(1,1,3),
+    // y=2: x=0 only = 4 cells
+    c(0,2,0),c(0,2,1),c(0,2,2),c(0,2,3),
   ],
 
   // 1 = find first solution only; set higher to count/list multiple solutions
