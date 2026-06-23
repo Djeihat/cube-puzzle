@@ -82,5 +82,13 @@ Key actions: `goToMenu()` · `goToDifficulty(d)` · `startPuzzle(d, i)` · `next
 ### Pointer / touch
 Scene uses raw DOM pointer events (`pointerdown/move/up`) for turntable, not R3F. Container uses R3F `onPointerMove`/`onClick` on meshes. `drag.occurred` disambiguates drag-release from click. `useIsMobile()` (pointer:coarse) is the shared touch detector.
 
+**Touch interaction model (mobile):**
+- One-finger drag on canvas → rotates scene (turntable), unless touch lands on the ghost
+- One-finger drag starting on the ghost piece → ghost-drag mode: ghost follows finger, snaps to container cells via R3F `onPointerMove`, places on `pointerup` if `hoveredCell` is set
+- Two-finger pinch → zooms camera
+- Tap container cell directly → `onClick` places piece (no ghost preview needed for quick tap)
+- Ghost detection: `onPointerDown` in turntable effect raycasts against `ghostCubesRef` (bounding boxes in world space) — avoids R3F event ordering dependency
+- Container meshes have NO `onPointerDown` — ghost only moves when the user explicitly drags the ghost piece, never passively on rotation touches
+
 ### Ghost preview
 `hoveredCell` (set by Container's R3F events) drives interior snapping. Scene also casts a ray onto a frontoparallel plane for exterior ghost display. Placement always uses `hoveredCell`, never the exterior ray.

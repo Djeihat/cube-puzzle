@@ -272,11 +272,6 @@ export function Container({ container, placedShapes }: Props) {
       */}
       <mesh
         position={[cx, cy, cz]}
-        onPointerDown={(e) => {
-          e.stopPropagation()
-          if (!useGameStore.getState().selectedShapeId) return
-          setHoveredCell(cellFromHit(e))
-        }}
         onPointerMove={handlePointerMove}
         onClick={handleClick}
       >
@@ -292,11 +287,6 @@ export function Container({ container, placedShapes }: Props) {
         <mesh
           key={vec3Key(cell)}
           position={[cell.x + 0.5, cell.y + 0.5, cell.z + 0.5]}
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            if (!selectedShapeId) return
-            setHoveredCell(cell)
-          }}
           onPointerMove={(e) => {
             e.stopPropagation()
             if (!selectedShapeId) return
@@ -330,19 +320,6 @@ export function Container({ container, placedShapes }: Props) {
           onClick={() => {
             if (drag.occurred) { drag.occurred = false; return }
             if (!useGameStore.getState().selectedShapeId) liftShape(shape.id)
-          }}
-          onPointerDown={(e) => {
-            e.stopPropagation()
-            if (!selectedShapeId) return
-            const localPt = e.object.parent!.worldToLocal(e.point.clone())
-            const normal = (e as any).face?.normal ?? new THREE.Vector3(0, 1, 0)
-            const inset = localPt.clone().addScaledVector(normal, -0.1)
-            const raw = {
-              x: Math.max(0, Math.min(container.x - 1, Math.floor(inset.x))),
-              y: Math.max(0, Math.min(container.y - 1, Math.floor(inset.y))),
-              z: Math.max(0, Math.min(container.z - 1, Math.floor(inset.z))),
-            }
-            setHoveredCell(validCells ? findNearestValidCell(raw, validCells) : raw)
           }}
           onPointerMove={(e) => {
             e.stopPropagation()
