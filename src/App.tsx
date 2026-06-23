@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './components/Scene'
 import { ShapeTray } from './components/ShapeTray'
@@ -8,7 +9,12 @@ import { useGameStore } from './store'
 import { useIsMobile } from './hooks'
 
 export default function App() {
-  const screen          = useGameStore(s => s.screen)
+  const screen             = useGameStore(s => s.screen)
+  const fetchDailyPuzzles  = useGameStore(s => s.fetchDailyPuzzles)
+
+  // Fetch today's AI-generated puzzles as early as possible.
+  // Falls back to static library silently if fetch fails.
+  useEffect(() => { fetchDailyPuzzles() }, [fetchDailyPuzzles])
   const selectedShapeId = useGameStore(s => s.selectedShapeId)
   const won             = useGameStore(s => s.won)
   const holding         = selectedShapeId !== null

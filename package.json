@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "validate": "vite-node scripts/validate-puzzles.ts",
-    "solve": "vite-node scripts/solve-puzzle.ts"
+    "solve": "vite-node scripts/solve-puzzle.ts",
+    "generate": "vite-node scripts/generate-daily-puzzles.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
