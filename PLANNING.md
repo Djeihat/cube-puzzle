@@ -254,6 +254,12 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 - Track solve time, hint usage, retry count per puzzle
 - Adapt next puzzle selection based on performance signal
 
+### Puzzle archive (paying members)
+- Paying members can replay any past daily puzzle by date
+- **V1 constraint:** daily puzzle selection uses `dayIndex % puzzleCount` (modular arithmetic). This mapping is only stable if puzzles are never reordered or removed — adding new puzzles to the end is safe. A proper archive requires the backend to freeze the `date → puzzle_id` mapping on the day it is first served; otherwise reordering would silently change what puzzle a past date resolves to.
+- **V1 design choice that enables this:** `getDailyIndex(difficulty, dateString)` accepts an explicit date parameter rather than using today's date internally. Archive lookups pass a historical date; today's puzzle passes today's date. No signature change needed when archive ships.
+- Paywalled: requires user accounts and payment integration (see Backend below)
+
 ### Monetisation (post-V1)
 - 5 free hints per puzzle; earn extras via clean solves / streaks
 - Additional hints purchasable individually
