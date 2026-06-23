@@ -114,8 +114,12 @@ export function Scene() {
   // cursor moves over a placed piece, so we use the DOM event instead.
   useEffect(() => {
     const clear = () => {
-      useGameStore.getState().setHoveredCell(null)
-      ghost.dragging = false  // safety reset if finger leaves canvas mid-drag
+      ghost.dragging = false
+      // Only clear hoveredCell when no piece is held — when a piece is selected,
+      // keep the last snapped position so the ghost stays where the finger was.
+      if (!useGameStore.getState().selectedShapeId) {
+        useGameStore.getState().setHoveredCell(null)
+      }
     }
     domElement.addEventListener('pointerleave', clear)
     return () => domElement.removeEventListener('pointerleave', clear)
