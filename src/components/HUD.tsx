@@ -1,6 +1,5 @@
 import { useGameStore } from '../store'
-import { DIFFICULTY_META, PUZZLE_LIBRARY } from '../puzzle'
-import type { DifficultyKey } from '../puzzle'
+import { DIFFICULTY_META } from '../puzzle'
 
 const pill: React.CSSProperties = {
   position: 'fixed',
@@ -26,19 +25,6 @@ const btnGhost: React.CSSProperties = {
   cursor: 'pointer',
 }
 
-const btnPrimary: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #4A90D9 0%, #5870d9 100%)',
-  border: 'none',
-  borderRadius: 10,
-  color: '#fff',
-  padding: '9px 22px',
-  fontSize: 14,
-  cursor: 'pointer',
-  fontWeight: 600,
-  letterSpacing: 0.3,
-  whiteSpace: 'nowrap',
-}
-
 const divider: React.CSSProperties = {
   width: 1, height: 16, background: 'rgba(255,255,255,0.15)',
 }
@@ -46,18 +32,12 @@ const divider: React.CSSProperties = {
 export function HUD() {
   const {
     hintCount, useHint, won, reset, puzzle,
-    currentDifficulty, currentPuzzleIndex,
-    goToDifficulty, nextPuzzle,
-    dynamicPuzzles,
+    currentDifficulty, goToMenu,
   } = useGameStore()
 
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
   const hintsUsed     = 5 - hintCount
   const meta          = currentDifficulty ? DIFFICULTY_META[currentDifficulty] : null
-  const totalCount    = currentDifficulty
-    ? PUZZLE_LIBRARY[currentDifficulty as DifficultyKey].length + dynamicPuzzles[currentDifficulty].length
-    : 0
-  const hasNext       = currentDifficulty ? currentPuzzleIndex + 1 < totalCount : false
 
   if (won) {
     return (
@@ -66,7 +46,7 @@ export function HUD() {
 
         <div>
           <div style={{ color: '#fff', fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>
-            {meta?.label ?? 'Puzzle'} #{currentPuzzleIndex + 1} solved!
+            Today's {meta?.label ?? 'Puzzle'} solved!
           </div>
           <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}>
             {hintsUsed === 0 ? 'No hints used' : `${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`}
@@ -75,33 +55,27 @@ export function HUD() {
 
         <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.1)' }} />
 
-        <button onClick={() => currentDifficulty && goToDifficulty(currentDifficulty)} style={btnGhost}>
-          Puzzles
+        <button onClick={goToMenu} style={btnGhost}>
+          Menu
         </button>
-
-        {hasNext && (
-          <button onClick={nextPuzzle} style={btnPrimary}>
-            Next →
-          </button>
-        )}
       </div>
     )
   }
 
   return (
     <div style={{ ...pill, top: 20 }}>
-      {/* Back to puzzle list */}
+      {/* Back to menu */}
       <button
-        onClick={() => currentDifficulty && goToDifficulty(currentDifficulty)}
+        onClick={goToMenu}
         style={{ ...btnGhost, padding: '4px 10px' }}
-        title="Back to puzzles"
+        title="Back to menu"
       >
         ←
       </button>
 
       <div style={divider} />
 
-      {/* Difficulty + puzzle number */}
+      {/* Difficulty badge */}
       {meta && (
         <>
           <span style={{
@@ -109,12 +83,6 @@ export function HUD() {
             letterSpacing: 1, textTransform: 'uppercase',
           }}>
             {meta.label}
-          </span>
-          <span style={{
-            color: meta.color, fontSize: 11, fontWeight: 700,
-            letterSpacing: 1,
-          }}>
-            #{currentPuzzleIndex + 1}
           </span>
           <div style={divider} />
         </>

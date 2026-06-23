@@ -4,17 +4,15 @@ import { ShapeTray } from './components/ShapeTray'
 import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
 import { MenuScreen } from './components/MenuScreen'
-import { DifficultyScreen } from './components/DifficultyScreen'
 import { useGameStore } from './store'
 
 export default function App() {
-  const screen         = useGameStore(s => s.screen)
+  const screen          = useGameStore(s => s.screen)
   const selectedShapeId = useGameStore(s => s.selectedShapeId)
-  const won            = useGameStore(s => s.won)
-  const holding        = selectedShapeId !== null
+  const won             = useGameStore(s => s.won)
+  const holding         = selectedShapeId !== null
 
-  if (screen === 'menu')       return <MenuScreen />
-  if (screen === 'difficulty') return <DifficultyScreen />
+  if (screen === 'menu') return <MenuScreen />
 
   return (
     <div

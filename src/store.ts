@@ -3,20 +3,10 @@ import type { PlacedShape, Vec3, Puzzle } from './types'
 import { applyRotation, normalizeShape, addOffset, cubesInBounds, cubesOverlap } from './puzzle'
 import { getEasyPuzzle, PUZZLE_LIBRARY } from './puzzle'
 import type { DifficultyKey } from './puzzle'
+import { getTodayString, getDailyIndex, getDailySolvedKey } from './daily'
 
-// Looks up a puzzle by index: static library first, then dynamically generated ones.
-function getPuzzle(
-  d: DifficultyKey,
-  i: number,
-  dynamicPuzzles: Record<DifficultyKey, Puzzle[]>,
-): Puzzle {
-  const staticLib = PUZZLE_LIBRARY[d]
-  if (i < staticLib.length) return staticLib[i]()
-  return dynamicPuzzles[d][i - staticLib.length]
-}
-
-function totalPuzzleCount(d: DifficultyKey, dynamicPuzzles: Record<DifficultyKey, Puzzle[]>): number {
-  return PUZZLE_LIBRARY[d].length + dynamicPuzzles[d].length
+function getPuzzle(d: DifficultyKey, i: number): Puzzle {
+  return PUZZLE_LIBRARY[d][i]()
 }
 
 // Resets all in-game state for a fresh start on the given puzzle.
@@ -34,13 +24,10 @@ function freshGame(puzzle: Puzzle) {
 
 interface GameState {
   // ── Navigation ────────────────────────────────────────────────────────────
-  screen:             'menu' | 'difficulty' | 'game'
+  screen:             'menu' | 'game'
   currentDifficulty:  DifficultyKey | null
   currentPuzzleIndex: number
-  solvedPuzzles:      Record<string, boolean>  // key: `${difficulty}-${index}`
-  dynamicPuzzles:     Record<DifficultyKey, Puzzle[]>
-  generatingPuzzle:   boolean
-  generationError:    string | null
+  solvedPuzzles:      Record<string, boolean>  // key: `daily-${difficulty}-${YYYY-MM-DD}`
 
   // ── Active game ───────────────────────────────────────────────────────────
   puzzle:          Puzzle
@@ -52,11 +39,8 @@ interface GameState {
   won:             boolean
 
   // ── Navigation actions ────────────────────────────────────────────────────
-  goToMenu:            () => void
-  goToDifficulty:      (d: DifficultyKey) => void
-  startPuzzle:         (d: DifficultyKey, i: number) => void
-  nextPuzzle:          () => void
-  requestGeneration:   (d: DifficultyKey) => Promise<void>
+  goToMenu:          () => void
+  startDailyPuzzle:  (d: DifficultyKey) => void
 
   // ── Game actions ──────────────────────────────────────────────────────────
   selectShape:     (id: string | null) => void
@@ -74,77 +58,27 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentDifficulty:  null,
   currentPuzzleIndex: 0,
   solvedPuzzles:      {},
-  dynamicPuzzles:     { easy: [], medium: [], hard: [] },
-  generatingPuzzle:   false,
-  generationError:    null,
 
-  // ── Game initial state (placeholder until startPuzzle is called) ──────────
+  // ── Game initial state (placeholder until startDailyPuzzle is called) ─────
   ...freshGame(getEasyPuzzle()),
 
   // ── Navigation actions ────────────────────────────────────────────────────
   goToMenu: () => set({
-    screen:            'menu',
+    screen:          'menu',
     currentDifficulty: null,
-    selectedShapeId:   null,
-    hoveredCell:       null,
+    selectedShapeId: null,
+    hoveredCell:     null,
   }),
 
-  goToDifficulty: (d) => set({
-    screen:            'difficulty',
-    currentDifficulty: d,
-    selectedShapeId:   null,
-    hoveredCell:       null,
-  }),
-
-  startPuzzle: (d, i) => {
-    const { dynamicPuzzles } = get()
+  startDailyPuzzle: (d) => {
+    const date = getTodayString()
+    const i    = getDailyIndex(d, date)
     set({
       screen:             'game',
       currentDifficulty:  d,
       currentPuzzleIndex: i,
-      generationError:    null,
-      ...freshGame(getPuzzle(d, i, dynamicPuzzles)),
+      ...freshGame(getPuzzle(d, i)),
     })
-  },
-
-  nextPuzzle: () => {
-    const { currentDifficulty, currentPuzzleIndex, dynamicPuzzles } = get()
-    if (!currentDifficulty) { set({ screen: 'menu' }); return }
-    const next = currentPuzzleIndex + 1
-    if (next < totalPuzzleCount(currentDifficulty, dynamicPuzzles)) {
-      set({
-        currentPuzzleIndex: next,
-        generationError:    null,
-        ...freshGame(getPuzzle(currentDifficulty, next, dynamicPuzzles)),
-      })
-    } else {
-      set({ screen: 'difficulty', won: false })
-    }
-  },
-
-  requestGeneration: async (d) => {
-    set({ generatingPuzzle: true, generationError: null })
-    try {
-      const { generatePuzzle } = await import('./generation')
-      const puzzle = await generatePuzzle(d)
-      const { dynamicPuzzles } = get()
-      const updated: Record<DifficultyKey, Puzzle[]> = {
-        ...dynamicPuzzles,
-        [d]: [...dynamicPuzzles[d], puzzle],
-      }
-      set({ dynamicPuzzles: updated, generatingPuzzle: false })
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : 'Generation failed.'
-      console.error('[Generation error]', raw)
-      // Show a friendly message for auth/billing/network issues
-      const isBillingOrAuth = /credit|billing|401|403|api.?key|balance/i.test(raw)
-      set({
-        generatingPuzzle: false,
-        generationError: isBillingOrAuth
-          ? 'AI puzzle generation isn\'t available right now — check back soon!'
-          : raw,
-      })
-    }
   },
 
   // ── Game actions ──────────────────────────────────────────────────────────
@@ -174,7 +108,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   placeShape: (shapeId, offset) => {
-    const { puzzle, placedShapes, currentDifficulty, currentPuzzleIndex, solvedPuzzles } = get()
+    const { puzzle, placedShapes, currentDifficulty, solvedPuzzles } = get()
     const shape = puzzle.shapes.find(s => s.id === shapeId)
     if (!shape || shape.placed) return false
 
@@ -186,12 +120,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const occupiedCubes = placedShapes.flatMap(p => p.cubes)
     if (cubesOverlap(worldCubes, occupiedCubes)) return false
 
-    const newPlaced      = { id: shapeId, cubes: worldCubes, color: shape.color }
+    const newPlaced       = { id: shapeId, cubes: worldCubes, color: shape.color }
     const newPlacedShapes = [...placedShapes, newPlaced]
-    const allPlaced      = puzzle.shapes.every(s => s.id === shapeId ? true : s.placed)
+    const allPlaced       = puzzle.shapes.every(s => s.id === shapeId ? true : s.placed)
 
     const newSolved = allPlaced && currentDifficulty
-      ? { ...solvedPuzzles, [`${currentDifficulty}-${currentPuzzleIndex}`]: true }
+      ? { ...solvedPuzzles, [getDailySolvedKey(currentDifficulty, getTodayString())]: true }
       : solvedPuzzles
 
     set({
@@ -231,8 +165,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   reset: () => {
-    const { currentDifficulty, currentPuzzleIndex, dynamicPuzzles } = get()
+    const { currentDifficulty, currentPuzzleIndex } = get()
     if (!currentDifficulty) return
-    set(freshGame(getPuzzle(currentDifficulty, currentPuzzleIndex, dynamicPuzzles)))
+    set(freshGame(getPuzzle(currentDifficulty, currentPuzzleIndex)))
   },
 }))
