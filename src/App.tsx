@@ -5,6 +5,7 @@ import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
 import { MenuScreen } from './components/MenuScreen'
 import { useGameStore } from './store'
+import { useIsMobile } from './hooks'
 
 export default function App() {
   const screen          = useGameStore(s => s.screen)
@@ -40,7 +41,8 @@ export default function App() {
 }
 
 function Instructions({ holding, won }: { holding: boolean; won: boolean }) {
-  if (won) return null
+  const isMobile = useIsMobile()
+  if (won || isMobile) return null
   return (
     <div style={{
       position: 'fixed',

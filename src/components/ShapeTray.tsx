@@ -1,19 +1,70 @@
 import { useGameStore } from '../store'
 import { applyRotation, normalizeShape } from '../puzzle'
+import { useIsMobile } from '../hooks'
 import { ShapePreview3D } from './ShapePreview3D'
 
 export function ShapeTray() {
   const { puzzle, selectedShapeId, selectShape, won } = useGameStore()
-  const unplaced = puzzle.shapes.filter(s => !s.placed)
+  const isMobile = useIsMobile()
+  const unplaced  = puzzle.shapes.filter(s => !s.placed)
 
-  // Hide while the player admires their solved puzzle
   if (won) return null
 
-  return (
-    // Outer shell: fixed to the left edge, bounded vertically by HUD (top) and screen edge (bottom)
-    <div style={{ position: 'fixed', left: 20, top: 80, bottom: 20, zIndex: 10 }}>
+  if (isMobile) {
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: 'rgba(8,14,30,0.92)',
+        borderTop: '1px solid rgba(100,140,255,0.18)',
+        zIndex: 10,
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          overflowX: 'auto',
+          padding: '8px 12px',
+          scrollbarWidth: 'none',
+        }}>
+          {unplaced.map(shape => {
+            const selected     = shape.id === selectedShapeId
+            const rotatedCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+            return (
+              <div
+                key={shape.id}
+                onClick={() => selectShape(selected ? null : shape.id)}
+                style={{
+                  flexShrink: 0,
+                  width: 72,
+                  height: 72,
+                  background: selected ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  border: `2px solid ${selected ? shape.color : 'rgba(100,140,255,0.18)'}`,
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <ShapePreview3D cubes={rotatedCubes} color={shape.color} />
+              </div>
+            )
+          })}
+          {unplaced.length === 0 && (
+            <div style={{ color: '#666', fontSize: 12, padding: '24px 12px' }}>All placed!</div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
-      {/* Scrollable inner column */}
+  // ── Desktop: left-side vertical tray ─────────────────────────────────────
+  return (
+    <div style={{ position: 'fixed', left: 20, top: 80, bottom: 20, zIndex: 10 }}>
       <div style={{
         height: '100%',
         display: 'flex',
@@ -38,7 +89,7 @@ export function ShapeTray() {
         </div>
 
         {unplaced.map(shape => {
-          const selected = shape.id === selectedShapeId
+          const selected     = shape.id === selectedShapeId
           const rotatedCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
           return (
             <div
@@ -67,13 +118,10 @@ export function ShapeTray() {
         )}
       </div>
 
-      {/* Fade gradient — hints that more pieces are below when the list overflows */}
       {unplaced.length > 4 && (
         <div style={{
           position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 4,
+          bottom: 0, left: 0, right: 4,
           height: 48,
           background: 'linear-gradient(to bottom, transparent, #111827)',
           pointerEvents: 'none',
