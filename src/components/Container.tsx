@@ -6,6 +6,8 @@ import { PieceMesh } from './PieceMesh'
 import { useGameStore } from '../store'
 import { vec3Key, applyRotation, normalizeShape, placementOffset } from '../puzzle'
 import { drag } from '../dragState'
+import { ghost } from '../ghostState'
+import { useIsMobile } from '../hooks'
 
 interface Props {
   container: Vec3
@@ -130,6 +132,7 @@ function findNearestValidCell(target: Vec3, validCells: Vec3[]): Vec3 {
 
 export function Container({ container, placedShapes }: Props) {
   const { puzzle, hintHighlight, selectedShapeId, setHoveredCell, placeShape, liftShape } = useGameStore()
+  const isMobile = useIsMobile()
 
   const cx = container.x / 2
   const cy = container.y / 2
@@ -180,6 +183,7 @@ export function Container({ container, placedShapes }: Props) {
   function handlePointerMove(e: ThreeEvent<PointerEvent>) {
     e.stopPropagation()
     if (!selectedShapeId) return
+    if (isMobile && !ghost.dragging) return
     setHoveredCell(cellFromHit(e))
   }
 
@@ -290,6 +294,7 @@ export function Container({ container, placedShapes }: Props) {
           onPointerMove={(e) => {
             e.stopPropagation()
             if (!selectedShapeId) return
+            if (isMobile && !ghost.dragging) return
             setHoveredCell(cell)
           }}
           onClick={(e) => {
@@ -324,6 +329,7 @@ export function Container({ container, placedShapes }: Props) {
           onPointerMove={(e) => {
             e.stopPropagation()
             if (!selectedShapeId) return
+            if (isMobile && !ghost.dragging) return
             const localPt = e.object.parent!.worldToLocal(e.point.clone())
             const normal = (e as any).face?.normal ?? new THREE.Vector3(0, 1, 0)
             const inset = localPt.clone().addScaledVector(normal, -0.1)

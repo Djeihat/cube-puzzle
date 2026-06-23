@@ -6,10 +6,13 @@ import { Container } from './Container'
 import { UnitCube } from './UnitCube'
 import { applyRotation, normalizeShape, addOffset, placementOffset, vec3Key } from '../puzzle'
 import { drag } from '../dragState'
+import { ghost } from '../ghostState'
+import { useIsMobile } from '../hooks'
 import type { Vec3 } from '../types'
 
 export function Scene() {
   const { puzzle, placedShapes, selectedShapeId, hoveredCell, currentDifficulty, currentPuzzleIndex } = useGameStore()
+  const isMobile = useIsMobile()
   const groupRef = useRef<THREE.Group>(null)
   const { gl: { domElement }, camera } = useThree()
 
@@ -67,7 +70,10 @@ export function Scene() {
       ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 1, z: Math.floor(puzzle.container.z / 2) }
       : null)
 
-  if (selectedShapeId && shapeCubes && groupRef.current) {
+  // Update exterior ghost from pointer position only when:
+  // - desktop (mouse hover drives the ghost naturally), OR
+  // - mobile and the user is actively dragging the ghost piece
+  if (selectedShapeId && shapeCubes && groupRef.current && (!isMobile || ghost.dragging)) {
     raycasterRef.current.setFromCamera(mouseNDC.current, camera)
     const planeNormal = camera.position.clone().normalize()
     const plane = new THREE.Plane(planeNormal, 0)
@@ -107,7 +113,10 @@ export function Scene() {
   // The R3F onPointerLeave on the hit box was removed to avoid it firing when
   // cursor moves over a placed piece, so we use the DOM event instead.
   useEffect(() => {
-    const clear = () => useGameStore.getState().setHoveredCell(null)
+    const clear = () => {
+      useGameStore.getState().setHoveredCell(null)
+      ghost.dragging = false  // safety reset if finger leaves canvas mid-drag
+    }
     domElement.addEventListener('pointerleave', clear)
     return () => domElement.removeEventListener('pointerleave', clear)
   }, [domElement])
@@ -160,6 +169,7 @@ export function Scene() {
           const box = new THREE.Box3().setFromCenterAndSize(center, new THREE.Vector3(0.95, 0.95, 0.95))
           if (raycasterRef.current.ray.intersectsBox(box)) {
             ghostDragging.current = true
+            ghost.dragging = true
             return  // Don't activate turntable
           }
         }
@@ -213,6 +223,7 @@ export function Scene() {
           }
         }
         ghostDragging.current = false
+        ghost.dragging = false
       }
       ptrs.delete(e.pointerId)
       if (ptrs.size < 2) pinchDist = 0
