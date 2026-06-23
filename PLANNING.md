@@ -155,12 +155,12 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 
 ## Difficulty Tiers
 
-### Piece counts
-| Tier | Pieces per puzzle |
-|---|---|
-| Easy | 3–5 |
-| Medium | 6–7 |
-| Hard | 8–10 |
+### Piece counts and sizes
+| Tier | Pieces per puzzle | Piece sizes |
+|---|---|---|
+| Easy | 3–4 | 3–5 cubes each |
+| Medium | 5–6 | 3–5 cubes each |
+| Hard | 7–8 | 3–5 cubes each |
 
 ### Container shapes
 | Tier | Container |
@@ -169,18 +169,8 @@ All cube arrays, `validCells` arrays, and container declarations throughout the 
 | Medium | Irregular |
 | Hard | Irregular |
 
-### Solution counts (target)
-| Tier | Valid solutions |
-|---|---|
-| Easy | 3–5 |
-| Medium | 2–3 |
-| Hard | 1 |
-
-### Piece orientations allowed
-| Tier | Rule |
-|---|---|
-| Easy / Medium | Rotations + reflections (free tetracubes — 7 distinct) |
-| Hard | Rotations only (right-screw ≠ left-screw — 8 distinct tetracubes) |
+### Piece orientations
+All difficulties: free polycubes — rotations + reflections allowed. No chirality constraint.
 
 ---
 

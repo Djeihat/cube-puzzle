@@ -136,18 +136,39 @@ function solve(pieces: Piece[], validCells: Vec3[], maxSolutions: number): Place
 
 // ── piece library ─────────────────────────────────────────────────────────────
 
-// ── Easy / Medium pieces (free tetracubes — reflections allowed) ──────────────
-// Under "free" rules, L=J, S=Z, and right-screw=left-screw (7 distinct total).
-// Under "rotations only" (hard mode), right-screw ≠ left-screw (8 distinct total).
+// All difficulties use free polycubes (rotations + reflections allowed).
+// Piece sizes 3–5 cubes. Add any named piece here to make it available in CONFIG.
 const PIECE_DEFS: Record<string, Vec3[]> = {
+  // ── Triominoes (3 cubes) ──────────────────────────────────────────────────
+  'I-triomino':   [c(0,0,0),c(1,0,0),c(2,0,0)],
+  'L-triomino':   [c(0,0,0),c(1,0,0),c(0,1,0)],
+
+  // ── Tetrominoes (4 cubes) ─────────────────────────────────────────────────
   'I-bar':        [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0)],
   'O-square':     [c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0)],
   'T-tetromino':  [c(0,0,0),c(1,0,0),c(2,0,0),c(1,1,0)],
   'L-tetromino':  [c(0,0,0),c(1,0,0),c(2,0,0),c(2,1,0)],
   'S-skew':       [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0)],
   'right-screw':  [c(0,0,0),c(1,0,0),c(1,1,0),c(1,1,1)],
-  'left-screw':   [c(0,0,0),c(1,0,0),c(1,0,1),c(1,1,1)],  // chiral mirror of right-screw (hard only)
   'branch':       [c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1)],
+
+  // ── Pentominoes (5 cubes) — flat ─────────────────────────────────────────
+  'P-pento':      [c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0),c(0,2,0)],
+  'F-pento':      [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0),c(1,2,0)],
+  'I-pento':      [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),c(4,0,0)],
+  'L-pento':      [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),c(3,1,0)],
+  'N-pento':      [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0),c(3,1,0)],
+  'T-pento':      [c(0,0,0),c(1,0,0),c(2,0,0),c(1,1,0),c(1,2,0)],
+  'U-pento':      [c(0,0,0),c(2,0,0),c(0,1,0),c(1,1,0),c(2,1,0)],
+  'V-pento':      [c(0,0,0),c(1,0,0),c(2,0,0),c(0,1,0),c(0,2,0)],
+  'W-pento':      [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0),c(2,2,0)],
+  'X-pento':      [c(0,1,0),c(1,0,0),c(1,1,0),c(1,2,0),c(2,1,0)],
+  'Y-pento':      [c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),c(1,1,0)],
+  'Z-pento':      [c(0,0,0),c(1,0,0),c(1,1,0),c(1,2,0),c(2,2,0)],
+
+  // ── Pentominoes (5 cubes) — non-flat ─────────────────────────────────────
+  '3D-pento-A':   [c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1),c(1,0,1)],
+  '3D-pento-B':   [c(0,0,0),c(1,0,0),c(1,1,0),c(1,0,1),c(2,0,1)],
 }
 
 // ── output ────────────────────────────────────────────────────────────────────
