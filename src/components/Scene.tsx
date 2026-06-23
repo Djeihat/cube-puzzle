@@ -16,8 +16,13 @@ export function Scene() {
   // ── Mouse tracking for exterior ghost ───────────────────────────────────
   // NDC coords updated on every DOM pointermove so we can project a cursor
   // ray onto a frontoparallel plane independently of the R3F event system.
-  const mouseNDC = useRef(new THREE.Vector2())
+  const mouseNDC    = useRef(new THREE.Vector2())
   const raycasterRef = useRef(new THREE.Raycaster())
+  // Ghost drag state — tracks the ghost cube positions (set each render) so the
+  // DOM-level onPointerDown can raycast against them without R3F event ordering concerns.
+  const ghostCubesRef    = useRef<Vec3[] | null>(null)
+  const containerHalfRef = useRef({ cx: 0, cy: 0, cz: 0 })
+  const ghostDragging    = useRef(false)
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -91,6 +96,10 @@ export function Scene() {
     ? ghostCubes.map(cube => ({ cube, conflict: false }))
     : null
 
+  // Keep refs current so the DOM-level turntable handler can raycast against them
+  ghostCubesRef.current    = ghostCubes
+  containerHalfRef.current = { cx, cy, cz }
+
   const floorY = -cy - 1.2
 
 
@@ -125,6 +134,35 @@ export function Scene() {
         const [a, b] = [...ptrs.values()]
         pinchDist = Math.hypot(b.x - a.x, b.y - a.y)
         return
+      }
+
+      // If the pointer lands on the ghost piece, enter ghost-drag mode instead
+      // of rotating the scene. We raycast against the ghost cube positions
+      // directly in the DOM handler — no R3F event ordering dependency.
+      const cubes = ghostCubesRef.current
+      if (cubes && groupRef.current) {
+        const rect = domElement.getBoundingClientRect()
+        raycasterRef.current.setFromCamera(
+          new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width)  *  2 - 1,
+            ((e.clientY - rect.top)  / rect.height) * -2 + 1,
+          ),
+          camera,
+        )
+        const { cx, cy, cz } = containerHalfRef.current
+        const mw = groupRef.current.matrixWorld
+        for (const cube of cubes) {
+          const center = new THREE.Vector3(
+            cube.x + 0.5 - cx,
+            cube.y + 0.5 - cy,
+            cube.z + 0.5 - cz,
+          ).applyMatrix4(mw)
+          const box = new THREE.Box3().setFromCenterAndSize(center, new THREE.Vector3(0.95, 0.95, 0.95))
+          if (raycasterRef.current.ray.intersectsBox(box)) {
+            ghostDragging.current = true
+            return  // Don't activate turntable
+          }
+        }
       }
 
       active = true
@@ -164,6 +202,18 @@ export function Scene() {
     }
 
     function onPointerUp(e: PointerEvent) {
+      // Ghost drag ended — place piece at current hoveredCell if one is set
+      if (ghostDragging.current) {
+        const state = useGameStore.getState()
+        if (state.selectedShapeId && state.hoveredCell) {
+          const shape = state.puzzle.shapes.find(s => s.id === state.selectedShapeId && !s.placed)
+          if (shape) {
+            const sc = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+            state.placeShape(state.selectedShapeId, placementOffset(sc, state.hoveredCell))
+          }
+        }
+        ghostDragging.current = false
+      }
       ptrs.delete(e.pointerId)
       if (ptrs.size < 2) pinchDist = 0
       active = false
