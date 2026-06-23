@@ -59,7 +59,7 @@ export function Scene() {
   let ghostCell: Vec3 | null =
     hoveredCell ??
     (selectedShapeId
-      ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 2, z: Math.floor(puzzle.container.z / 2) }
+      ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 1, z: Math.floor(puzzle.container.z / 2) }
       : null)
 
   if (selectedShapeId && shapeCubes && groupRef.current) {
@@ -117,19 +117,32 @@ export function Scene() {
     return () => domElement.removeEventListener('pointerleave', clear)
   }, [domElement])
 
-  // ── Turntable controls ───────────────────────────────────────────────────
-  // The scene GROUP rotates in response to drag; the camera and lights stay
-  // fixed in world-space so lighting never shifts from the viewer's perspective.
+  // ── Turntable + pinch-zoom controls ─────────────────────────────────────
+  // The scene GROUP rotates in response to single-finger/mouse drag.
+  // Two-finger pinch zooms the camera. On touch, lifting the finger while
+  // a piece is held places the piece at the current hoveredCell.
   useEffect(() => {
-    let active   = false
-    let startX   = 0, startY = 0
-    let lastX    = 0, lastY  = 0
-    let rotX     = 0, rotY   = 0   // current Euler angles on the group
+    let active    = false
+    let startX    = 0, startY = 0
+    let lastX     = 0, lastY  = 0
+    let rotX      = 0, rotY   = 0
+    const ptrs    = new Map<number, { x: number; y: number }>()
+    let pinchDist = 0
 
     function onPointerDown(e: PointerEvent) {
       if (e.button !== 0) return
-      if (useGameStore.getState().selectedShapeId) return  // piece held — drag moves ghost, not scene
-      active  = true
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (ptrs.size === 2) {
+        // Second finger — switch to pinch mode, stop turntable
+        active = false
+        const [a, b] = [...ptrs.values()]
+        pinchDist = Math.hypot(b.x - a.x, b.y - a.y)
+        return
+      }
+
+      if (useGameStore.getState().selectedShapeId) return  // piece held — drag moves ghost
+      active = true
       drag.occurred = false
       startX = lastX = e.clientX
       startY = lastY = e.clientY
@@ -137,12 +150,24 @@ export function Scene() {
     }
 
     function onPointerMove(e: PointerEvent) {
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (ptrs.size >= 2) {
+        // Pinch zoom: scale camera distance by ratio of current / previous pinch distance
+        const [a, b] = [...ptrs.values()]
+        const dist = Math.hypot(b.x - a.x, b.y - a.y)
+        if (pinchDist > 0) {
+          const newDist = Math.max(4, Math.min(22, camera.position.length() * (pinchDist / dist)))
+          camera.position.setLength(newDist)
+        }
+        pinchDist = dist
+        return
+      }
+
       if (!active || !groupRef.current) return
       const dx = e.clientX - lastX
       const dy = e.clientY - lastY
-      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 4) {
-        drag.occurred = true
-      }
+      if (Math.hypot(e.clientX - startX, e.clientY - startY) > 4) drag.occurred = true
       if (drag.occurred) {
         rotY += dx * 0.008
         rotX  = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotX + dy * 0.008))
@@ -154,13 +179,27 @@ export function Scene() {
     }
 
     function onPointerUp(e: PointerEvent) {
+      // Touch placement: fires before pointerleave clears hoveredCell, so
+      // the current hovered cell is still available here.
+      if (e.pointerType === 'touch') {
+        const state = useGameStore.getState()
+        if (state.selectedShapeId && state.hoveredCell) {
+          const shape = state.puzzle.shapes.find(s => s.id === state.selectedShapeId && !s.placed)
+          if (shape) {
+            const sc = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
+            state.placeShape(state.selectedShapeId, placementOffset(sc, state.hoveredCell))
+          }
+        }
+      }
+
+      ptrs.delete(e.pointerId)
+      if (ptrs.size < 2) pinchDist = 0
       active = false
       domElement.releasePointerCapture(e.pointerId)
     }
 
     function onWheel(e: WheelEvent) {
       e.preventDefault()
-      // Zoom by scaling the camera's distance from origin, keeping direction.
       const dist    = camera.position.length()
       const newDist = Math.max(4, Math.min(22, dist * (1 + e.deltaY * 0.001)))
       camera.position.setLength(newDist)
