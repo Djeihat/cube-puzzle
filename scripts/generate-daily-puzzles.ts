@@ -199,10 +199,13 @@ const PIECE_CONFIGS: Record<DifficultyKey, Array<{ pieces: number; cubesEach: nu
 const SYSTEM_PROMPT = `You design 3D polycube puzzles where pieces pack perfectly into a container.
 
 COORDINATE SYSTEM: Integer {x, y, z} coordinates.
-Two cells are face-adjacent when they differ by exactly 1 in exactly one axis (no diagonals).
+
+FACE-ADJACENCY — two cells are face-adjacent ONLY if they differ by exactly 1 in exactly one axis:
+  VALID:   (0,0,0)↔(1,0,0)  (0,0,0)↔(0,1,0)  (0,0,0)↔(0,0,1)
+  INVALID: (0,0,0)↔(1,1,0)  (0,0,0)↔(1,0,1)  (0,0,0)↔(1,1,1)  ← diagonal, not allowed
 
 RULES:
-1. Each piece is a connected set of face-adjacent cubes.
+1. Each piece is a connected set of face-adjacent cubes (no diagonal connections).
 2. Normalize each piece: shift so min(x) = min(y) = min(z) = 0.
 3. The container must be at least 2 cells wide in every axis (x ≥ 2, y ≥ 2, z ≥ 2).
 4. All pieces must be distinct shapes (no two pieces look the same after rotation/reflection).
@@ -216,10 +219,10 @@ function buildUserPrompt(
   cfg: { pieces: number; cubesEach: number },
 ): string {
   const total = cfg.pieces * cfg.cubesEach
-  const isEasy = difficulty === 'easy'
-  const containerDesc = isEasy
-    ? 'a rectangular box — set "container" to its dimensions, omit "validCells"'
-    : 'an irregular shape — include "validCells" listing every valid cell'
+  // Medium uses irregular containers (18–25 cells — manageable to enumerate).
+  // Easy and Hard use rectangular boxes — Hard's 28–35 cell count is too large
+  // for the model to enumerate reliably as validCells.
+  const useIrregular = difficulty === 'medium'
 
   return `Design a ${difficulty.toUpperCase()} polycube puzzle for ${date}${attempt > 0 ? ` (attempt ${attempt + 1} — use a completely different design)` : ''}.
 
@@ -228,12 +231,15 @@ EXACT REQUIREMENTS (do not change these numbers):
 - Cubes per piece: exactly ${cfg.cubesEach} cubes each
 - Container cells: exactly ${total}  (= ${cfg.pieces} × ${cfg.cubesEach})
 
-CONTAINER: ${containerDesc}
-${isEasy ? '' : 'Remove some cells from a corner or edge to create an interesting non-rectangular shape.'}
+CONTAINER: ${useIrregular
+    ? `an irregular shape — include "validCells" listing every valid cell.
+Remove some cells from a corner or edge of a rectangular box to create an interesting shape.`
+    : `a rectangular box whose x×y×z = ${total} exactly — omit "validCells".
+Choose dimensions so every axis is at least 2 (e.g. for ${total} cells: ${suggestDims(total)}).`}
 
 FORMAT:
 {
-  "container": {"x": N, "y": N, "z": N},${isEasy ? '' : '\n  "validCells": [{"x":0,"y":0,"z":0}, ...],'}
+  "container": {"x": N, "y": N, "z": N},${useIrregular ? '\n  "validCells": [{"x":0,"y":0,"z":0}, ...],' : ''}
   "pieces": [
     {"name": "descriptive-name", "cubes": [{"x":0,"y":0,"z":0}, ...]},
     ... (exactly ${cfg.pieces} pieces, each with exactly ${cfg.cubesEach} cubes)
@@ -242,11 +248,23 @@ FORMAT:
 
 CHECKLIST:
 ✓ Exactly ${cfg.pieces} pieces in the "pieces" array
-✓ Each piece has exactly ${cfg.cubesEach} cubes — count them
-✓ Container has exactly ${total} valid cells — count them
-✓ Each piece is face-connected (adjacent cells differ by 1 in one axis only)
+✓ Each piece has exactly ${cfg.cubesEach} cubes — count every cube
+✓ ${useIrregular ? `"validCells" has exactly ${total} entries — count them` : `container x×y×z = ${total}`}
+✓ Every pair of adjacent cubes in a piece differs by 1 in exactly one axis (no diagonals)
 ✓ Each piece is normalised: min(x) = min(y) = min(z) = 0
 ✓ All piece shapes are distinct`
+}
+
+function suggestDims(total: number): string {
+  // Return a few sensible rectangular dimensions for guidance
+  const suggestions: string[] = []
+  for (let x = 2; x <= total / 4; x++)
+    for (let y = 2; y <= total / (x * 2); y++) {
+      const z = total / (x * y)
+      if (Number.isInteger(z) && z >= 2) suggestions.push(`${x}×${y}×${z}`)
+      if (suggestions.length >= 3) return suggestions.join(' or ')
+    }
+  return suggestions.join(' or ') || `${total}×1×1 (too thin — pick better)`
 }
 
 // ── generation ────────────────────────────────────────────────────────────────
@@ -256,7 +274,7 @@ async function generatePuzzle(
   difficulty: DifficultyKey,
   date: string,
 ): Promise<object> {
-  const MAX_ATTEMPTS = 6
+  const MAX_ATTEMPTS = difficulty === 'hard' ? 8 : 6
   const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
