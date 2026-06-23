@@ -52,7 +52,15 @@ export function Scene() {
   // Interior cursor positions are handled by the R3F cell-mesh events (hoveredCell),
   // which remain authoritative for placement clicks.  The plane projection is only
   // used for the ghost DISPLAY; placement always uses hoveredCell.
-  let ghostCell: Vec3 | null = hoveredCell
+  // Default: show ghost just above the container centre when a piece is held
+  // but hoveredCell hasn't been set yet (e.g. on mobile right after selecting
+  // from the tray). The exterior-ghost ray projection overrides this as soon
+  // as the pointer moves over the canvas.
+  let ghostCell: Vec3 | null =
+    hoveredCell ??
+    (selectedShapeId
+      ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 2, z: Math.floor(puzzle.container.z / 2) }
+      : null)
 
   if (selectedShapeId && shapeCubes && groupRef.current) {
     raycasterRef.current.setFromCamera(mouseNDC.current, camera)
@@ -80,13 +88,21 @@ export function Scene() {
   const ghostCubes = offset && shapeCubes ? addOffset(shapeCubes, offset) : null
 
   const occupied = placedShapes.flatMap(p => p.cubes)
+  const { x: bx, y: by, z: bz } = puzzle.container
   const classifiedGhost = ghostCubes
-    ? ghostCubes.map(cube => ({
-        cube,
-        conflict:
-          !cubesInBounds([cube], puzzle.container, puzzle.validCells) ||
-          cubesOverlap([cube], occupied),
-      }))
+    ? ghostCubes.map(cube => {
+        // Only flag as conflict when the cube is inside the container bounding
+        // box. A ghost floating above/outside shows white (held, not placed)
+        // rather than red (which reads as an error).
+        const inBox = cube.x >= 0 && cube.x < bx && cube.y >= 0 && cube.y < by && cube.z >= 0 && cube.z < bz
+        return {
+          cube,
+          conflict: inBox && (
+            !cubesInBounds([cube], puzzle.container, puzzle.validCells) ||
+            cubesOverlap([cube], occupied)
+          ),
+        }
+      })
     : null
 
   const floorY = -cy - 1.2
