@@ -27,7 +27,7 @@ export default function App() {
     >
       <Canvas
         camera={{ position: [5, 5, 8], fov: 45 }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ width: '100%', height: '100%', touchAction: 'none' }}
         shadows="soft"
       >
         <Scene />
