@@ -53,15 +53,18 @@ export function RotationControls() {
   // ── Mobile: on-screen rotation buttons ──────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{
-        position: 'fixed',
-        right: 12,
-        bottom: 100,  // above the piece tray
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        zIndex: 11,
-      }}>
+      <div
+        onPointerDown={(e) => e.stopPropagation()}
+        style={{
+          position: 'fixed',
+          right: 12,
+          bottom: 100,  // above the piece tray
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          zIndex: 11,
+        }}
+      >
         {/* Rotation grid: 2 columns */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           {MOBILE_BTNS.map(({ axis, dir, label, color }) => (
