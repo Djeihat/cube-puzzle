@@ -22,6 +22,22 @@ function freshGame(puzzle: Puzzle) {
   }
 }
 
+// Restores the solved view of a puzzle — pieces at solution positions, won=true.
+function solvedGame(puzzle: Puzzle) {
+  return {
+    puzzle: {
+      ...puzzle,
+      shapes: puzzle.shapes.map(s => ({ ...s, placed: true })),
+    },
+    placedShapes:    puzzle.solution.map(s => ({ ...s })) as PlacedShape[],
+    selectedShapeId: null as string | null,
+    hoveredCell:     null as Vec3 | null,
+    hintCount:       0,
+    hintHighlight:   null as string | null,
+    won:             true,
+  }
+}
+
 interface GameState {
   // ── Navigation ────────────────────────────────────────────────────────────
   screen:             'menu' | 'game'
@@ -57,12 +73,24 @@ interface GameState {
   reset:           () => void
 }
 
+// Persist solved state across page refreshes so today's puzzle stays locked.
+function loadSolvedPuzzles(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem('solvedPuzzles')
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function saveSolvedPuzzles(solved: Record<string, boolean>) {
+  try { localStorage.setItem('solvedPuzzles', JSON.stringify(solved)) } catch {}
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   // ── Navigation initial state ──────────────────────────────────────────────
   screen:             'menu',
   currentDifficulty:  null,
   currentPuzzleIndex: 0,
-  solvedPuzzles:      {},
+  solvedPuzzles:      loadSolvedPuzzles(),
   fetchedPuzzles:     null,
   fetchedDate:        null,
 
@@ -95,26 +123,17 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startDailyPuzzle: (d) => {
     const today = getTodayString()
-    const { fetchedPuzzles, fetchedDate } = get()
+    const { fetchedPuzzles, fetchedDate, solvedPuzzles } = get()
 
-    // Use AI-generated puzzle if available for today
-    if (fetchedDate === today && fetchedPuzzles?.[d]) {
-      set({
-        screen:             'game',
-        currentDifficulty:  d,
-        currentPuzzleIndex: -1,
-        ...freshGame(fetchedPuzzles[d] as Puzzle),
-      })
-      return
-    }
+    const useFetched = fetchedDate === today && !!fetchedPuzzles?.[d]
+    const puzzle     = useFetched ? fetchedPuzzles![d] as Puzzle : getPuzzle(d, getDailyIndex(d, today))
+    const alreadySolved = !!solvedPuzzles[getDailySolvedKey(d, today)]
 
-    // Fallback: static library with date-seeded index
-    const i = getDailyIndex(d, today)
     set({
       screen:             'game',
       currentDifficulty:  d,
-      currentPuzzleIndex: i,
-      ...freshGame(getPuzzle(d, i)),
+      currentPuzzleIndex: useFetched ? -1 : getDailyIndex(d, today),
+      ...(alreadySolved ? solvedGame(puzzle) : freshGame(puzzle)),
     })
   },
 
@@ -175,6 +194,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         shapes: puzzle.shapes.map(s => s.id === shapeId ? { ...s, placed: true } : s),
       },
     })
+    if (allPlaced) saveSolvedPuzzles(newSolved)
     return true
   },
 
