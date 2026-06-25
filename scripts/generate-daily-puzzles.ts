@@ -159,8 +159,8 @@ const MEDIUM_SPECS: ContainerSpec[] = PUZZLE_LIBRARY.medium.map(factory => {
 })
 
 const EASY_BY_TOTAL   = groupByTotal(EASY_CONTAINERS)
-const MEDIUM_BY_TOTAL = groupByTotal(MEDIUM_SPECS.filter(s => s.total <= 24))   // 20, 24 cells
-const HARD_BY_TOTAL   = groupByTotal(MEDIUM_SPECS.filter(s => s.total >= 28))   // 28 cells
+const MEDIUM_BY_TOTAL = groupByTotal(MEDIUM_SPECS.filter(s => s.total === 20))  // 20-cell containers only
+const HARD_BY_TOTAL   = groupByTotal(MEDIUM_SPECS.filter(s => s.total === 24))  // 24-cell containers (most complex)
 
 function pickContainer(difficulty: DifficultyKey, total: number): ContainerSpec | null {
   const map = difficulty === 'easy' ? EASY_BY_TOTAL
@@ -181,16 +181,19 @@ const PIECE_CONFIGS: Record<DifficultyKey, Array<{pieces: number; cubesEach: num
     { pieces: 3, cubesEach: 4 },   // 12 cells (repeat for variety)
   ],
   medium: [
-    { pieces: 5, cubesEach: 4 },   // 20 cells, irregular
-    { pieces: 6, cubesEach: 4 },   // 24 cells, irregular
+    { pieces: 5, cubesEach: 4 },   // 20 cells, irregular (medium 1, 4, 5)
     { pieces: 5, cubesEach: 4 },
-    { pieces: 6, cubesEach: 4 },
+    { pieces: 5, cubesEach: 4 },
+    { pieces: 5, cubesEach: 4 },
   ],
+  // Hard uses the same 24-cell containers as medium but Sonnet partitions them
+  // into 6 distinct pieces vs medium's 5-6 — the container complexity (not
+  // piece count) is the primary difficulty driver for now.
   hard: [
-    { pieces: 7, cubesEach: 4 },   // 28 cells, most complex irregular containers
-    { pieces: 7, cubesEach: 4 },
-    { pieces: 7, cubesEach: 4 },
-    { pieces: 7, cubesEach: 4 },
+    { pieces: 6, cubesEach: 4 },   // 24 cells, complex irregular containers
+    { pieces: 6, cubesEach: 4 },
+    { pieces: 6, cubesEach: 4 },
+    { pieces: 6, cubesEach: 4 },
   ],
 }
 
@@ -234,7 +237,7 @@ async function generatePuzzle(
   difficulty: DifficultyKey,
   date: string,
 ): Promise<object> {
-  const MAX_ATTEMPTS = difficulty === 'easy' ? 8 : 14
+  const MAX_ATTEMPTS = 10
   const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -249,7 +252,7 @@ async function generatePuzzle(
     // Call Claude
     let raw: any
     try {
-      const model = difficulty === 'easy' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+      const model = 'claude-sonnet-4-6'
       const msg = await client.messages.create({
         model,
         max_tokens: 4096,
