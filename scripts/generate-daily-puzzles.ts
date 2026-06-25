@@ -187,10 +187,13 @@ const PIECE_CONFIGS: Record<DifficultyKey, Array<{ pieces: number; cubesEach: nu
     { pieces: 5, cubesEach: 5 },   // 25 cells
     { pieces: 6, cubesEach: 3 },   // 18 cells
   ],
+  // 7p×4c=28 only factors as 2×2×7 (stick — poor puzzles, omitted)
+  // 7p×5c=35 has no 3-factor decomposition with all dims ≥ 2 (omitted)
   hard:   [
-    { pieces: 7, cubesEach: 4 },   // 28 cells
-    { pieces: 8, cubesEach: 4 },   // 32 cells
-    { pieces: 7, cubesEach: 5 },   // 35 cells
+    { pieces: 8, cubesEach: 4 },   // 32 cells → 4×4×2 or 2×4×4 ✓
+    { pieces: 6, cubesEach: 5 },   // 30 cells → 3×5×2 or 2×5×3 ✓
+    { pieces: 8, cubesEach: 4 },   // 32 cells (second config for variety)
+    { pieces: 6, cubesEach: 5 },   // 30 cells (second config for variety)
   ],
 }
 
@@ -235,7 +238,8 @@ CONTAINER: ${useIrregular
     ? `an irregular shape — include "validCells" listing every valid cell.
 Remove some cells from a corner or edge of a rectangular box to create an interesting shape.`
     : `a rectangular box whose x×y×z = ${total} exactly — omit "validCells".
-Choose dimensions so every axis is at least 2 (e.g. for ${total} cells: ${suggestDims(total)}).`}
+CRITICAL: every dimension must be ≥ 2. A container like 5×7×1 or 4×7×1 is INVALID.
+Valid options for ${total} cells: ${suggestDims(total)}.`}
 
 FORMAT:
 {
@@ -256,15 +260,15 @@ CHECKLIST:
 }
 
 function suggestDims(total: number): string {
-  // Return a few sensible rectangular dimensions for guidance
+  // Only return factorizations where ALL three dimensions are ≥ 2
   const suggestions: string[] = []
   for (let x = 2; x <= total / 4; x++)
-    for (let y = 2; y <= total / (x * 2); y++) {
+    for (let y = 2; y <= Math.floor(total / (x * 2)); y++) {
       const z = total / (x * y)
       if (Number.isInteger(z) && z >= 2) suggestions.push(`${x}×${y}×${z}`)
       if (suggestions.length >= 3) return suggestions.join(' or ')
     }
-  return suggestions.join(' or ') || `${total}×1×1 (too thin — pick better)`
+  return suggestions.join(' or ') || '(no simple factorization — use a nearby total)'
 }
 
 // ── generation ────────────────────────────────────────────────────────────────
@@ -274,7 +278,7 @@ async function generatePuzzle(
   difficulty: DifficultyKey,
   date: string,
 ): Promise<object> {
-  const MAX_ATTEMPTS = difficulty === 'hard' ? 8 : 6
+  const MAX_ATTEMPTS = difficulty === 'hard' ? 12 : 6
   const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
