@@ -45,6 +45,39 @@ function normalize(cubes: Vec3[]): Vec3[] {
   return cubes.map(p => ({ x: p.x - minX, y: p.y - minY, z: p.z - minZ }))
 }
 
+function shapeKey(cubes: Vec3[]): string { return cubes.map(key).sort().join('|') }
+
+function rotateX(v: Vec3): Vec3 { return { x: v.x,  y: -v.z, z:  v.y } }
+function rotateY(v: Vec3): Vec3 { return { x: v.z,  y:  v.y, z: -v.x } }
+function rotateZ(v: Vec3): Vec3 { return { x: -v.y, y:  v.x, z:  v.z } }
+
+function allOrientations(cubes: Vec3[]): Vec3[][] {
+  const seen = new Set<string>()
+  const results: Vec3[][] = []
+  let c1 = cubes
+  for (let xi = 0; xi < 4; xi++) {
+    let c2 = c1
+    for (let yi = 0; yi < 4; yi++) {
+      let c3 = c2
+      for (let zi = 0; zi < 4; zi++) {
+        const norm = normalize(c3)
+        const k = shapeKey(norm)
+        if (!seen.has(k)) { seen.add(k); results.push(norm) }
+        c3 = c3.map(rotateZ)
+      }
+      c2 = c2.map(rotateY)
+    }
+    c1 = c1.map(rotateX)
+  }
+  return results
+}
+
+// Canonical form: the lexicographically smallest shapeKey across all rotations.
+// Two pieces with the same canonicalKey are the same polycube shape.
+function canonicalKey(cubes: Vec3[]): string {
+  return allOrientations(normalize(cubes)).map(o => shapeKey(normalize(o))).sort()[0]
+}
+
 function allContainerCells(container: Vec3): Vec3[] {
   const cells: Vec3[] = []
   for (let x = 0; x < container.x; x++)
@@ -182,9 +215,10 @@ ${JSON.stringify(cells)}
 RULES:
 1. Every cell must appear in exactly one group
 2. Each group must have exactly ${M} cells
-3. Each group must be face-connected (no diagonal links)
-4. Create varied shapes — include both flat pieces and 3D pieces
-${attempt > 0 ? '5. Previous attempt was invalid — try a completely different partition' : ''}
+3. Each group must be face-connected — adjacent cells differ by 1 in exactly one axis only (no diagonals)
+4. ALL ${N} groups must be DISTINCT polycube shapes — no two groups may be identical, even after rotation
+5. Create VARIED shapes: mix L-shapes, T-shapes, S-shapes, 3D pieces spanning all three axes, and asymmetric forms. Avoid repeating 2×2 squares or straight bars.
+${attempt > 0 ? '6. Previous attempt was rejected for duplicate or invalid groups. Use a completely different partition with maximum shape variety.' : ''}
 
 Return JSON only:
 {"groups": [[{"x":0,"y":0,"z":0}, ...], ...]}`
@@ -248,6 +282,15 @@ async function generatePuzzle(
     // All groups connected
     const disconnected = groups.find(g => !isConnected(g))
     if (disconnected) { console.log('group not connected'); continue }
+
+    // All groups must be distinct shapes (no two identical polycubes)
+    const keys = groups.map(g => canonicalKey(g))
+    const uniqueKeys = new Set(keys)
+    if (uniqueKeys.size < groups.length) {
+      const dupeCount = groups.length - uniqueKeys.size
+      console.log(`${dupeCount} duplicate piece shape(s) — retry`)
+      continue
+    }
 
     console.log('✓')
 
