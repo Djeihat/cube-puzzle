@@ -234,7 +234,7 @@ async function generatePuzzle(
   difficulty: DifficultyKey,
   date: string,
 ): Promise<object> {
-  const MAX_ATTEMPTS = difficulty === 'hard' ? 12 : 6
+  const MAX_ATTEMPTS = difficulty === 'easy' ? 8 : 14
   const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -249,8 +249,9 @@ async function generatePuzzle(
     // Call Claude
     let raw: any
     try {
+      const model = difficulty === 'easy' ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
       const msg = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model,
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: buildPrompt(cfg.pieces, cfg.cubesEach, spec.validCells, attempt) }],
@@ -271,12 +272,21 @@ async function generatePuzzle(
     const wrongSize = groups.find(g => g.length !== cfg.cubesEach)
     if (wrongSize) { console.log(`wrong group size: ${wrongSize.length}`); continue }
 
-    // All cells covered with no duplicates
+    // All container cells covered, no cells outside container, no duplicates
     const expected = new Set(spec.validCells.map(key))
-    const covered  = new Set(groups.flat().map(key))
-    if (covered.size !== expected.size || [...expected].some(k => !covered.has(k))) {
-      console.log(`cell mismatch: covered ${covered.size}, expected ${expected.size}`)
-      continue
+    const allFlat  = groups.flat().map(key)
+    const covered  = new Set(allFlat)
+    const outsideContainer = allFlat.filter(k => !expected.has(k))
+    const hasDuplicateCells = allFlat.length !== covered.size
+    const missingCells = [...expected].filter(k => !covered.has(k))
+    if (outsideContainer.length > 0) {
+      console.log(`${outsideContainer.length} cell(s) outside container`); continue
+    }
+    if (hasDuplicateCells) {
+      console.log('duplicate cells across groups'); continue
+    }
+    if (missingCells.length > 0) {
+      console.log(`${missingCells.length} cell(s) not covered`); continue
     }
 
     // All groups connected
