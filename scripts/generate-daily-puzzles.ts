@@ -1,26 +1,42 @@
 /**
- * Daily puzzle generator
+ * Daily puzzle generator — partition approach
  * Run:  npx vite-node scripts/generate-daily-puzzles.ts [YYYY-MM-DD]
  * Date defaults to tomorrow if omitted.
  * Writes public/daily-puzzles.json.
+ *
+ * Rather than asking Claude to invent pieces that happen to fit, we give it
+ * an existing validated container and ask it to PARTITION the cells into N
+ * groups.  Each group is a placed piece — a solution is guaranteed by
+ * construction.  No backtracking solver needed.
+ *
+ * Container sources:
+ *   easy  — simple rectangular boxes (hardcoded)
+ *   medium — moderately irregular containers from the static puzzle library
+ *   hard  — the most complex irregular containers from the library (28 cells)
+ *            with more groups than medium (7 vs 5–6) → harder even in the
+ *            same container shapes
  */
 
 import Anthropic from '@anthropic-ai/sdk'
 import { writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { PUZZLE_LIBRARY } from '../src/puzzle'
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
 type Vec3 = { x: number; y: number; z: number }
 type DifficultyKey = 'easy' | 'medium' | 'hard'
 
-// ── solver (same core logic as solve-puzzle.ts) ───────────────────────────────
+interface ContainerSpec {
+  container: Vec3
+  validCells: Vec3[]
+  total: number
+  irregular: boolean   // true = include validCells in output
+}
+
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 const key = (v: Vec3) => `${v.x},${v.y},${v.z}`
-
-function rotateX(v: Vec3): Vec3 { return { x: v.x,  y: -v.z, z:  v.y } }
-function rotateY(v: Vec3): Vec3 { return { x: v.z,  y:  v.y, z: -v.x } }
-function rotateZ(v: Vec3): Vec3 { return { x: -v.y, y:  v.x, z:  v.z } }
 
 function normalize(cubes: Vec3[]): Vec3[] {
   const minX = Math.min(...cubes.map(p => p.x))
@@ -28,91 +44,6 @@ function normalize(cubes: Vec3[]): Vec3[] {
   const minZ = Math.min(...cubes.map(p => p.z))
   return cubes.map(p => ({ x: p.x - minX, y: p.y - minY, z: p.z - minZ }))
 }
-
-function shapeKey(cubes: Vec3[]): string {
-  return cubes.map(key).sort().join('|')
-}
-
-function allOrientations(cubes: Vec3[]): Vec3[][] {
-  const seen = new Set<string>()
-  const results: Vec3[][] = []
-  let c1 = cubes
-  for (let xi = 0; xi < 4; xi++) {
-    let c2 = c1
-    for (let yi = 0; yi < 4; yi++) {
-      let c3 = c2
-      for (let zi = 0; zi < 4; zi++) {
-        const norm = normalize(c3)
-        const k = shapeKey(norm)
-        if (!seen.has(k)) { seen.add(k); results.push(norm) }
-        c3 = c3.map(rotateZ)
-      }
-      c2 = c2.map(rotateY)
-    }
-    c1 = c1.map(rotateX)
-  }
-  return results
-}
-
-function placementsOf(orientation: Vec3[], validSet: Set<string>): Vec3[][] {
-  const seen = new Set<string>()
-  const result: Vec3[][] = []
-  for (const p of orientation) {
-    for (const cell of validSet) {
-      const [cx, cy, cz] = cell.split(',').map(Number)
-      const dx = cx - p.x, dy = cy - p.y, dz = cz - p.z
-      const placed = orientation.map(v => ({ x: v.x + dx, y: v.y + dy, z: v.z + dz }))
-      if (placed.every(v => validSet.has(key(v)))) {
-        const k = shapeKey(placed)
-        if (!seen.has(k)) { seen.add(k); result.push(placed) }
-      }
-    }
-  }
-  return result
-}
-
-interface SolverPiece { name: string; canonical: Vec3[]; placements: Vec3[][] }
-interface PlacedPiece { name: string; canonical: Vec3[]; cubes: Vec3[] }
-
-function solve(pieces: SolverPiece[], validCells: Vec3[], maxSolutions: number): PlacedPiece[][] {
-  const cellKeys = validCells.map(key)
-  const solutions: PlacedPiece[][] = []
-  const used = new Set<string>()
-  const placed: PlacedPiece[] = []
-
-  function firstUncovered(): string | null {
-    for (const k of cellKeys) if (!used.has(k)) return k
-    return null
-  }
-
-  function backtrack(remaining: number[]) {
-    if (solutions.length >= maxSolutions) return
-    const target = firstUncovered()
-    if (!target) {
-      solutions.push(placed.map(p => ({ ...p, cubes: p.cubes.map(v => ({ ...v })) })))
-      return
-    }
-    for (let i = 0; i < remaining.length; i++) {
-      const pi = remaining[i]
-      const piece = pieces[pi]
-      for (const placement of piece.placements) {
-        if (!placement.some(v => key(v) === target)) continue
-        if (placement.some(v => used.has(key(v)))) continue
-        for (const v of placement) used.add(key(v))
-        placed.push({ name: piece.name, canonical: piece.canonical, cubes: placement })
-        backtrack([...remaining.slice(0, i), ...remaining.slice(i + 1)])
-        placed.pop()
-        for (const v of placement) used.delete(key(v))
-        if (solutions.length >= maxSolutions) return
-      }
-    }
-  }
-
-  backtrack(pieces.map((_, i) => i))
-  return solutions
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
 
 function allContainerCells(container: Vec3): Vec3[] {
   const cells: Vec3[] = []
@@ -129,8 +60,8 @@ function isConnected(cubes: Vec3[]): boolean {
   const queue = [cubes[0]]
   remaining.delete(key(cubes[0]))
   const deltas = [
-    { x:1,y:0,z:0},{x:-1,y:0,z:0},{x:0,y:1,z:0},
-    { x:0,y:-1,z:0},{x:0,y:0,z:1},{x:0,y:0,z:-1},
+    {x:1,y:0,z:0},{x:-1,y:0,z:0},{x:0,y:1,z:0},
+    {x:0,y:-1,z:0},{x:0,y:0,z:1},{x:0,y:0,z:-1},
   ]
   while (queue.length > 0) {
     const cur = queue.pop()!
@@ -143,135 +74,126 @@ function isConnected(cubes: Vec3[]): boolean {
 }
 
 function extractJSON(text: string): any {
-  // Find the first '{' then walk forward counting braces to find the matching '}'.
-  // This correctly handles trailing prose or extra {} that a model may append.
   const start = text.indexOf('{')
-  if (start === -1) throw new Error('No JSON object found in response')
-
-  let depth = 0
-  let inString = false
-  let escape = false
-
+  if (start === -1) throw new Error('No JSON object found')
+  let depth = 0, inStr = false, esc = false
   for (let i = start; i < text.length; i++) {
     const ch = text[i]
-    if (escape)              { escape = false; continue }
-    if (ch === '\\' && inString) { escape = true;  continue }
-    if (ch === '"')          { inString = !inString; continue }
-    if (inString)            continue
+    if (esc)              { esc = false; continue }
+    if (ch === '\\' && inStr) { esc = true; continue }
+    if (ch === '"')       { inStr = !inStr; continue }
+    if (inStr)            continue
     if (ch === '{') depth++
     if (ch === '}') { depth--; if (depth === 0) return JSON.parse(text.slice(start, i + 1)) }
   }
-  throw new Error('No complete JSON object found in response')
+  throw new Error('No complete JSON object found')
 }
 
-// ── output formatting ─────────────────────────────────────────────────────────
+// ── container library ─────────────────────────────────────────────────────────
 
-const COLORS = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12']
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
+function makeSpec(container: Vec3, validCells?: Vec3[]): ContainerSpec {
+  const cells = validCells ?? allContainerCells(container)
+  const boxTotal = container.x * container.y * container.z
+  return {
+    container,
+    validCells: cells,
+    total: cells.length,
+    irregular: cells.length < boxTotal,
+  }
+}
 
-// ── configs ───────────────────────────────────────────────────────────────────
-// Pre-determined (pieceCount × cubesEach) combos remove all arithmetic from
-// Claude. We tell it exactly how many cubes per piece; it only needs to design
-// shapes, not verify sums.
+function groupByTotal(specs: ContainerSpec[]): Map<number, ContainerSpec[]> {
+  const m = new Map<number, ContainerSpec[]>()
+  for (const s of specs) {
+    if (!m.has(s.total)) m.set(s.total, [])
+    m.get(s.total)!.push(s)
+  }
+  return m
+}
 
-const PIECE_CONFIGS: Record<DifficultyKey, Array<{ pieces: number; cubesEach: number }>> = {
-  easy:   [
-    { pieces: 3, cubesEach: 4 },   // 12 cells
-    { pieces: 4, cubesEach: 3 },   // 12 cells
-    { pieces: 4, cubesEach: 4 },   // 16 cells
-    { pieces: 3, cubesEach: 5 },   // 15 cells
+// Easy: simple rectangular boxes
+const EASY_CONTAINERS: ContainerSpec[] = [
+  makeSpec({x:3,y:2,z:2}),   // 12 cells
+  makeSpec({x:2,y:2,z:3}),   // 12 cells
+  makeSpec({x:4,y:2,z:2}),   // 16 cells
+  makeSpec({x:2,y:2,z:4}),   // 16 cells
+]
+
+// Medium and Hard: pull container geometry from the static library
+const MEDIUM_SPECS: ContainerSpec[] = PUZZLE_LIBRARY.medium.map(factory => {
+  const p = factory()
+  return makeSpec(p.container, p.validCells)
+})
+
+const EASY_BY_TOTAL   = groupByTotal(EASY_CONTAINERS)
+const MEDIUM_BY_TOTAL = groupByTotal(MEDIUM_SPECS.filter(s => s.total <= 24))   // 20, 24 cells
+const HARD_BY_TOTAL   = groupByTotal(MEDIUM_SPECS.filter(s => s.total >= 28))   // 28 cells
+
+function pickContainer(difficulty: DifficultyKey, total: number): ContainerSpec | null {
+  const map = difficulty === 'easy' ? EASY_BY_TOTAL
+            : difficulty === 'medium' ? MEDIUM_BY_TOTAL
+            : HARD_BY_TOTAL
+  const options = map.get(total)
+  if (!options?.length) return null
+  return options[Math.floor(Math.random() * options.length)]
+}
+
+// ── piece configs ─────────────────────────────────────────────────────────────
+
+const PIECE_CONFIGS: Record<DifficultyKey, Array<{pieces: number; cubesEach: number}>> = {
+  easy: [
+    { pieces: 3, cubesEach: 4 },   // 12 cells, rectangular
+    { pieces: 4, cubesEach: 3 },   // 12 cells, rectangular
+    { pieces: 4, cubesEach: 4 },   // 16 cells, rectangular
+    { pieces: 3, cubesEach: 4 },   // 12 cells (repeat for variety)
   ],
   medium: [
-    { pieces: 5, cubesEach: 4 },   // 20 cells
-    { pieces: 6, cubesEach: 4 },   // 24 cells
-    { pieces: 5, cubesEach: 5 },   // 25 cells
-    { pieces: 6, cubesEach: 3 },   // 18 cells
+    { pieces: 5, cubesEach: 4 },   // 20 cells, irregular
+    { pieces: 6, cubesEach: 4 },   // 24 cells, irregular
+    { pieces: 5, cubesEach: 4 },
+    { pieces: 6, cubesEach: 4 },
   ],
-  // 7p×4c=28 only factors as 2×2×7 (stick — poor puzzles, omitted)
-  // 7p×5c=35 has no 3-factor decomposition with all dims ≥ 2 (omitted)
-  hard:   [
-    { pieces: 8, cubesEach: 4 },   // 32 cells → 4×4×2 or 2×4×4 ✓
-    { pieces: 6, cubesEach: 5 },   // 30 cells → 3×5×2 or 2×5×3 ✓
-    { pieces: 8, cubesEach: 4 },   // 32 cells (second config for variety)
-    { pieces: 6, cubesEach: 5 },   // 30 cells (second config for variety)
+  hard: [
+    { pieces: 7, cubesEach: 4 },   // 28 cells, most complex irregular containers
+    { pieces: 7, cubesEach: 4 },
+    { pieces: 7, cubesEach: 4 },
+    { pieces: 7, cubesEach: 4 },
   ],
 }
 
 // ── prompts ───────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You design 3D polycube puzzles where pieces pack perfectly into a container.
+const SYSTEM_PROMPT = `You partition 3D grids into connected piece groups for polycube puzzles.
 
-COORDINATE SYSTEM: Integer {x, y, z} coordinates.
-
-FACE-ADJACENCY — two cells are face-adjacent ONLY if they differ by exactly 1 in exactly one axis:
+FACE-ADJACENCY: Two cells are face-adjacent ONLY when they differ by exactly 1 in exactly one axis:
   VALID:   (0,0,0)↔(1,0,0)  (0,0,0)↔(0,1,0)  (0,0,0)↔(0,0,1)
-  INVALID: (0,0,0)↔(1,1,0)  (0,0,0)↔(1,0,1)  (0,0,0)↔(1,1,1)  ← diagonal, not allowed
+  INVALID: (0,0,0)↔(1,1,0)  (0,0,0)↔(1,0,1)  ← diagonal, not allowed
+
+OUTPUT: Valid JSON only — no prose, nothing after the closing brace.`
+
+function buildPrompt(
+  N: number, M: number, cells: Vec3[], attempt: number,
+): string {
+  return `Partition ALL ${cells.length} cells below into exactly ${N} groups of ${M} cells each.
+
+CELLS:
+${JSON.stringify(cells)}
 
 RULES:
-1. Each piece is a connected set of face-adjacent cubes (no diagonal connections).
-2. Normalize each piece: shift so min(x) = min(y) = min(z) = 0.
-3. The container must be at least 2 cells wide in every axis (x ≥ 2, y ≥ 2, z ≥ 2).
-4. All pieces must be distinct shapes (no two pieces look the same after rotation/reflection).
+1. Every cell must appear in exactly one group
+2. Each group must have exactly ${M} cells
+3. Each group must be face-connected (no diagonal links)
+4. Create varied shapes — include both flat pieces and 3D pieces
+${attempt > 0 ? '5. Previous attempt was invalid — try a completely different partition' : ''}
 
-OUTPUT: Valid JSON only — no prose, no markdown fences, nothing after the closing brace.`
-
-function buildUserPrompt(
-  difficulty: DifficultyKey,
-  date: string,
-  attempt: number,
-  cfg: { pieces: number; cubesEach: number },
-): string {
-  const total = cfg.pieces * cfg.cubesEach
-  // Medium uses irregular containers (18–25 cells — manageable to enumerate).
-  // Easy and Hard use rectangular boxes — Hard's 28–35 cell count is too large
-  // for the model to enumerate reliably as validCells.
-  const useIrregular = difficulty === 'medium'
-
-  return `Design a ${difficulty.toUpperCase()} polycube puzzle for ${date}${attempt > 0 ? ` (attempt ${attempt + 1} — use a completely different design)` : ''}.
-
-EXACT REQUIREMENTS (do not change these numbers):
-- Pieces: exactly ${cfg.pieces} pieces
-- Cubes per piece: exactly ${cfg.cubesEach} cubes each
-- Container cells: exactly ${total}  (= ${cfg.pieces} × ${cfg.cubesEach})
-
-CONTAINER: ${useIrregular
-    ? `an irregular shape — include "validCells" listing every valid cell.
-Remove some cells from a corner or edge of a rectangular box to create an interesting shape.`
-    : `a rectangular box whose x×y×z = ${total} exactly — omit "validCells".
-CRITICAL: every dimension must be ≥ 2. A container like 5×7×1 or 4×7×1 is INVALID.
-Valid options for ${total} cells: ${suggestDims(total)}.`}
-
-FORMAT:
-{
-  "container": {"x": N, "y": N, "z": N},${useIrregular ? '\n  "validCells": [{"x":0,"y":0,"z":0}, ...],' : ''}
-  "pieces": [
-    {"name": "descriptive-name", "cubes": [{"x":0,"y":0,"z":0}, ...]},
-    ... (exactly ${cfg.pieces} pieces, each with exactly ${cfg.cubesEach} cubes)
-  ]
-}
-
-CHECKLIST:
-✓ Exactly ${cfg.pieces} pieces in the "pieces" array
-✓ Each piece has exactly ${cfg.cubesEach} cubes — count every cube
-✓ ${useIrregular ? `"validCells" has exactly ${total} entries — count them` : `container x×y×z = ${total}`}
-✓ Every pair of adjacent cubes in a piece differs by 1 in exactly one axis (no diagonals)
-✓ Each piece is normalised: min(x) = min(y) = min(z) = 0
-✓ All piece shapes are distinct`
-}
-
-function suggestDims(total: number): string {
-  // Only return factorizations where ALL three dimensions are ≥ 2
-  const suggestions: string[] = []
-  for (let x = 2; x <= total / 4; x++)
-    for (let y = 2; y <= Math.floor(total / (x * 2)); y++) {
-      const z = total / (x * y)
-      if (Number.isInteger(z) && z >= 2) suggestions.push(`${x}×${y}×${z}`)
-      if (suggestions.length >= 3) return suggestions.join(' or ')
-    }
-  return suggestions.join(' or ') || '(no simple factorization — use a nearby total)'
+Return JSON only:
+{"groups": [[{"x":0,"y":0,"z":0}, ...], ...]}`
 }
 
 // ── generation ────────────────────────────────────────────────────────────────
+
+const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12']
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 async function generatePuzzle(
   client: Anthropic,
@@ -282,11 +204,13 @@ async function generatePuzzle(
   const configs = PIECE_CONFIGS[difficulty]
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    // Rotate through configs so each retry tries a different piece/cube combo
     const cfg = configs[attempt % configs.length]
-    const expectedTotal = cfg.pieces * cfg.cubesEach
+    const total = cfg.pieces * cfg.cubesEach
 
-    process.stdout.write(`  attempt ${attempt + 1}/${MAX_ATTEMPTS} (${cfg.pieces}p×${cfg.cubesEach}c=${expectedTotal}) ... `)
+    const spec = pickContainer(difficulty, total)
+    if (!spec) { console.log(`  no container for ${total} cells`); continue }
+
+    process.stdout.write(`  attempt ${attempt+1}/${MAX_ATTEMPTS} (${cfg.pieces}p×${cfg.cubesEach}c=${total}) ... `)
 
     // Call Claude
     let raw: any
@@ -295,105 +219,68 @@ async function generatePuzzle(
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: buildUserPrompt(difficulty, date, attempt, cfg) }],
+        messages: [{ role: 'user', content: buildPrompt(cfg.pieces, cfg.cubesEach, spec.validCells, attempt) }],
       })
       raw = extractJSON(msg.content[0].type === 'text' ? msg.content[0].text : '')
-    } catch (err) {
-      console.log(`parse error: ${err}`)
+    } catch (err) { console.log(`parse error: ${err}`); continue }
+
+    // Parse groups
+    const groups: Vec3[][] | undefined = raw.groups?.map(
+      (g: any[]) => g.map((c: any) => ({ x: Number(c.x), y: Number(c.y), z: Number(c.z) }))
+    )
+
+    if (!groups || groups.length !== cfg.pieces) {
+      console.log(`wrong group count: ${groups?.length} (expected ${cfg.pieces})`)
       continue
     }
 
-    // Build validCells
-    const validCells: Vec3[] = raw.validCells
-      ? raw.validCells.map((v: any) => ({ x: v.x, y: v.y, z: v.z }))
-      : allContainerCells({ x: raw.container.x, y: raw.container.y, z: raw.container.z })
+    const wrongSize = groups.find(g => g.length !== cfg.cubesEach)
+    if (wrongSize) { console.log(`wrong group size: ${wrongSize.length}`); continue }
 
-    const validSet = new Set(validCells.map(key))
-
-    // Validate: container cell count must match what we asked for
-    if (validCells.length !== expectedTotal) {
-      console.log(`container has ${validCells.length} cells, expected ${expectedTotal}`)
+    // All cells covered with no duplicates
+    const expected = new Set(spec.validCells.map(key))
+    const covered  = new Set(groups.flat().map(key))
+    if (covered.size !== expected.size || [...expected].some(k => !covered.has(k))) {
+      console.log(`cell mismatch: covered ${covered.size}, expected ${expected.size}`)
       continue
     }
 
-    // Validate: piece count and per-piece cube count
-    const pieces = raw.pieces as any[]
-    if (pieces.length !== cfg.pieces) {
-      console.log(`got ${pieces.length} pieces, expected ${cfg.pieces}`)
-      continue
-    }
-    const wrongSize = pieces.find((p: any) => p.cubes.length !== cfg.cubesEach)
-    if (wrongSize) {
-      console.log(`piece "${wrongSize.name}" has ${wrongSize.cubes.length} cubes, expected ${cfg.cubesEach}`)
-      continue
-    }
-
-    // Validate: piece connectivity
-    let ok = true
-    for (const p of pieces) {
-      const cubes: Vec3[] = p.cubes.map((c: any) => ({ x: c.x, y: c.y, z: c.z }))
-      if (!isConnected(cubes)) { console.log(`piece "${p.name}" not connected`); ok = false; break }
-    }
-    if (!ok) continue
-
-    // Validate: container dimensions ≥ 2 on every axis
-    const ctr = raw.container
-    if (ctr.x < 2 || ctr.y < 2 || ctr.z < 2) {
-      console.log(`container too thin: ${ctr.x}×${ctr.y}×${ctr.z}`)
-      continue
-    }
-
-    // Build solver pieces
-    const solverPieces: SolverPiece[] = (raw.pieces as any[]).map(p => {
-      const canonical = normalize(p.cubes.map((c: any) => ({ x: c.x, y: c.y, z: c.z })))
-      const seen = new Set<string>()
-      const placements = allOrientations(canonical)
-        .flatMap(o => placementsOf(o, validSet))
-        .filter(pl => { const k = shapeKey(pl); if (seen.has(k)) return false; seen.add(k); return true })
-      return { name: p.name, canonical, placements }
-    })
-
-    // Solve (1 second timeout via attempt count — solver is fast for small puzzles)
-    const solutions = solve(solverPieces, validCells, 1)
-    if (solutions.length === 0) { console.log('no solution found'); continue }
+    // All groups connected
+    const disconnected = groups.find(g => !isConnected(g))
+    if (disconnected) { console.log('group not connected'); continue }
 
     console.log('✓')
 
-    // Format output as Puzzle type
-    const solution = solutions[0]
+    // Build puzzle — groups ARE the solution; normalize each to get tray shapes
     const idPfx = `d${difficulty[0]}`
-
-    const shapes = solverPieces.map((p, i) => ({
+    const shapes = groups.map((g, i) => ({
       id: `${idPfx}${LETTERS[i]}`,
       color: COLORS[i % COLORS.length],
       rotation: [0, 0, 0],
       placed: false,
-      cubes: p.canonical,
+      cubes: normalize(g),
     }))
-
-    const solutionOut = solution.map((p, i) => ({
+    const solution = groups.map((g, i) => ({
       id: `${idPfx}${LETTERS[i]}`,
       color: COLORS[i % COLORS.length],
-      cubes: p.cubes,
+      cubes: g,
     }))
 
-    const puzzle: any = { container: raw.container, shapes, solution: solutionOut }
-    if (raw.validCells) puzzle.validCells = validCells
+    const puzzle: any = { container: spec.container, shapes, solution }
+    if (spec.irregular) puzzle.validCells = spec.validCells
     return puzzle
   }
 
-  throw new Error(`Could not generate a valid ${difficulty} puzzle in ${MAX_ATTEMPTS} attempts`)
+  throw new Error(`Could not generate valid ${difficulty} puzzle in ${MAX_ATTEMPTS} attempts`)
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   if (!process.env.ANTHROPIC_API_KEY) {
-    console.error('ANTHROPIC_API_KEY is not set')
-    process.exit(1)
+    console.error('ANTHROPIC_API_KEY is not set'); process.exit(1)
   }
 
-  // Target date: argument or tomorrow
   let date: string
   if (process.argv[2]) {
     date = process.argv[2]
@@ -415,7 +302,7 @@ async function main() {
       result[difficulty] = await generatePuzzle(client, difficulty, date)
     } catch (err) {
       console.error(`  FAILED: ${err}`)
-      result[difficulty] = null   // client falls back to static library for this tier
+      result[difficulty] = null
       anyFailed = true
     }
     console.log()
@@ -424,9 +311,10 @@ async function main() {
   const outPath = resolve(process.cwd(), 'public/daily-puzzles.json')
   writeFileSync(outPath, JSON.stringify(result, null, 2))
   console.log(`Written → ${outPath}`)
+
   if (anyFailed) {
-    console.warn('One or more difficulties failed — static library fallback will be used for those tiers.')
-    process.exit(1)   // mark action as failed so GitHub notifies, but file is still committed
+    console.warn('One or more difficulties failed — static library fallback will be used.')
+    process.exit(1)
   }
 }
 
