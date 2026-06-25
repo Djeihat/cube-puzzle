@@ -13,7 +13,7 @@
  *   hard   — 6 distinct tetracubes, 24-cell irregular containers
  */
 
-import { writeFileSync } from 'fs'
+import { writeFileSync, readFileSync, existsSync } from 'fs'
 import { resolve } from 'path'
 import { PUZZLE_LIBRARY } from '../src/puzzle'
 
@@ -163,12 +163,33 @@ function allCells(container: Vec3): Vec3[] {
   return cells
 }
 
-// Easy: all 10 rectangular containers from the static easy library
-const EASY_CONTAINERS: ContainerSpec[] = PUZZLE_LIBRARY.easy.map((factory, i) => {
-  const p = factory()
-  const cells = allCells(p.container)
-  return { container: p.container, validCells: cells, total: cells.length, label: `easy-${i+1}` }
-})
+// Easy: rectangular containers — include all axis-permutations of each unique
+// shape so players see visually different containers (portrait vs landscape).
+// 12-cell (3×2×2) and 16-cell (4×2×2) with all three axis orientations each.
+const EASY_CONTAINERS: ContainerSpec[] = (() => {
+  const library = PUZZLE_LIBRARY.easy.map(f => f())
+  const seen = new Set<string>()
+  const specs: ContainerSpec[] = []
+  const dims12 = [{x:3,y:2,z:2},{x:2,y:3,z:2},{x:2,y:2,z:3}]
+  const dims16 = [{x:4,y:2,z:2},{x:2,y:4,z:2},{x:2,y:2,z:4}]
+  for (const d of [...dims12, ...dims16]) {
+    const k = `${d.x},${d.y},${d.z}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    const cells = allCells(d)
+    specs.push({ container: d, validCells: cells, total: cells.length, label: k })
+  }
+  // Also include any unique-sized easy containers from the library
+  for (let i = 0; i < library.length; i++) {
+    const p = library[i]
+    const cells = allCells(p.container)
+    const k = `${p.container.x},${p.container.y},${p.container.z}`
+    if (!seen.has(k) && (cells.length === 12 || cells.length === 16)) {
+      seen.add(k); specs.push({ container: p.container, validCells: cells, total: cells.length, label: `easy-${i+1}` })
+    }
+  }
+  return specs
+})()
 
 // Medium: 20-cell irregular containers (puzzles 1, 4, 5)
 // Hard: 24-cell irregular containers (puzzles 2, 6, 7, 8)
@@ -222,7 +243,8 @@ function tryGenerate(
   const sol = solution.map((p, i) => ({
     id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes,
   }))
-  const puzzle: any = { container: spec.container, shapes, solution: sol }
+  // _fp stored in pool so append runs can skip already-generated puzzles
+  const puzzle: any = { _fp: fp, container: spec.container, shapes, solution: sol }
   const isIrregular = spec.validCells.length < spec.container.x * spec.container.y * spec.container.z
   if (isIrregular) puzzle.validCells = spec.validCells
   return puzzle
@@ -233,23 +255,21 @@ function generatePool(
   containers: ContainerSpec[],
   pieceCount: number,
   pieceNames: string[],
+  existing: object[],
   maxPerDiff = 60,
 ): object[] {
-  const pool: object[] = []
-  const seen = new Set<string>()
+  // Pre-load fingerprints from existing puzzles so we never duplicate
+  const seen = new Set<string>(existing.map((p: any) => p._fp).filter(Boolean))
+  const pool: object[] = [...existing]
   const idPfx = `d${difficulty[0]}`
   const pieceCombos = combinations(pieceNames, pieceCount)
 
   for (const spec of containers) {
     for (const names of pieceCombos) {
       if (pool.length >= maxPerDiff) break
-      // Only try combos whose total cells match the container
       if (names.length * 4 !== spec.total) continue
       const puzzle = tryGenerate(spec, names, idPfx, seen)
-      if (puzzle) {
-        pool.push(puzzle)
-        process.stdout.write('.')
-      }
+      if (puzzle) { pool.push(puzzle); process.stdout.write('.') }
     }
     if (pool.length >= maxPerDiff) break
   }
@@ -258,14 +278,25 @@ function generatePool(
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
+const MIN_POOL_SIZE = 30  // warn if any difficulty drops below this
+
 async function main() {
-  console.log('Generating puzzle pool...\n')
+  const outPath = resolve(process.cwd(), 'public/puzzle-pool.json')
+
+  // Load existing pool (append mode — never duplicate)
+  let existing: Record<string, object[]> = { easy: [], medium: [], hard: [] }
+  if (existsSync(outPath)) {
+    try { existing = JSON.parse(readFileSync(outPath, 'utf8')) } catch {}
+  }
+  const prevCounts = { easy: existing.easy?.length ?? 0, medium: existing.medium?.length ?? 0, hard: existing.hard?.length ?? 0 }
+
+  console.log(`Expanding puzzle pool (existing: ${prevCounts.easy}e / ${prevCounts.medium}m / ${prevCounts.hard}h)...\n`)
   const t0 = Date.now()
 
   // Easy: free polycubes, 3-piece (12-cell) and 4-piece (16-cell) containers
   process.stdout.write('[EASY] ')
-  const easyPool: object[] = []
-  const easySeen = new Set<string>()
+  const easySeen = new Set<string>((existing.easy ?? []).map((p: any) => p._fp).filter(Boolean))
+  const easyPool: object[] = [...(existing.easy ?? [])]
   const easyIdPfx = 'de'
   for (const spec of EASY_CONTAINERS) {
     const pieceCount = spec.total === 12 ? 3 : spec.total === 16 ? 4 : null
@@ -278,24 +309,31 @@ async function main() {
     }
     if (easyPool.length >= 60) break
   }
-  console.log(` ${easyPool.length} puzzles`)
+  console.log(` ${easyPool.length} puzzles (+${easyPool.length - prevCounts.easy} new)`)
 
   // Medium: free polycubes, 5 pieces × 4 cubes = 20 cells
   process.stdout.write('[MEDIUM] ')
-  const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 5, FREE_TETRACUBE_NAMES, 60)
-  console.log(` ${mediumPool.length} puzzles`)
+  const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 5, FREE_TETRACUBE_NAMES, existing.medium ?? [], 60)
+  console.log(` ${mediumPool.length} puzzles (+${mediumPool.length - prevCounts.medium} new)`)
 
   // Hard: one-sided polycubes (right-screw ≠ left-screw), 6 pieces × 4 cubes = 24 cells
   process.stdout.write('[HARD] ')
-  const hardPool = generatePool('hard', HARD_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, 60)
-  console.log(` ${hardPool.length} puzzles`)
+  const hardPool = generatePool('hard', HARD_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, existing.hard ?? [], 60)
+  console.log(` ${hardPool.length} puzzles (+${hardPool.length - prevCounts.hard} new)`)
 
   const ms = Date.now() - t0
   console.log(`\nDone in ${(ms/1000).toFixed(1)}s`)
 
-  const outPath = resolve(process.cwd(), 'public/puzzle-pool.json')
   writeFileSync(outPath, JSON.stringify({ easy: easyPool, medium: mediumPool, hard: hardPool }, null, 2))
   console.log(`Written → ${outPath}`)
+
+  // Warn if any difficulty is running low
+  const pools = { easy: easyPool, medium: mediumPool, hard: hardPool }
+  for (const [d, pool] of Object.entries(pools)) {
+    if (pool.length < MIN_POOL_SIZE) {
+      console.warn(`\n⚠  ${d} pool has only ${pool.length} puzzles (target: ${MIN_POOL_SIZE}). Add more containers to src/puzzle-${d}-*.ts to expand it.`)
+    }
+  }
 }
 
 main().catch(err => { console.error(err); process.exit(1) })
