@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "validate": "vite-node scripts/validate-puzzles.ts",
     "solve": "vite-node scripts/solve-puzzle.ts",
-    "generate": "vite-node scripts/generate-daily-puzzles.ts"
+    "generate": "vite-node scripts/generate-daily-puzzles.ts",
+    "generate-pool": "vite-node scripts/generate-puzzle-pool.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",

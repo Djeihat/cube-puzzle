@@ -45,9 +45,8 @@ interface GameState {
   currentPuzzleIndex: number
   solvedPuzzles:      Record<string, boolean>  // key: `daily-${difficulty}-${YYYY-MM-DD}`
 
-  // ── Daily puzzle fetch ────────────────────────────────────────────────────
-  fetchedPuzzles:  Record<DifficultyKey, Puzzle> | null
-  fetchedDate:     string | null
+  // ── Puzzle pool (fetched once at startup, rarely changes) ────────────────
+  puzzlePool:  Record<DifficultyKey, Puzzle[]> | null
 
   // ── Active game ───────────────────────────────────────────────────────────
   puzzle:          Puzzle
@@ -59,9 +58,9 @@ interface GameState {
   won:             boolean
 
   // ── Navigation actions ────────────────────────────────────────────────────
-  goToMenu:           () => void
-  startDailyPuzzle:   (d: DifficultyKey) => void
-  fetchDailyPuzzles:  () => Promise<void>
+  goToMenu:          () => void
+  startDailyPuzzle:  (d: DifficultyKey) => void
+  fetchPuzzlePool:   () => Promise<void>
 
   // ── Game actions ──────────────────────────────────────────────────────────
   selectShape:     (id: string | null) => void
@@ -91,8 +90,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentDifficulty:  null,
   currentPuzzleIndex: 0,
   solvedPuzzles:      loadSolvedPuzzles(),
-  fetchedPuzzles:     null,
-  fetchedDate:        null,
+  puzzlePool:         null,
 
   // ── Game initial state (placeholder until startDailyPuzzle is called) ─────
   ...freshGame(getEasyPuzzle()),
@@ -105,17 +103,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     hoveredCell:       null,
   }),
 
-  fetchDailyPuzzles: async () => {
-    const today = getTodayString()
-    if (get().fetchedDate === today) return  // already loaded today
+  fetchPuzzlePool: async () => {
+    if (get().puzzlePool) return  // already loaded
     try {
       const base = (import.meta as any).env?.BASE_URL ?? '/'
-      const res = await fetch(`${base}daily-puzzles.json`)
+      const res  = await fetch(`${base}puzzle-pool.json`)
       if (!res.ok) return
       const data = await res.json()
-      // Only use if the file is for today and all three difficulties are present
-      if (data.date !== today || !data.easy || !data.medium || !data.hard) return
-      set({ fetchedPuzzles: { easy: data.easy, medium: data.medium, hard: data.hard }, fetchedDate: today })
+      if (!data.easy?.length || !data.medium?.length || !data.hard?.length) return
+      set({ puzzlePool: { easy: data.easy, medium: data.medium, hard: data.hard } })
     } catch {
       // Fail silently — static library fallback handles it
     }
@@ -123,16 +119,27 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startDailyPuzzle: (d) => {
     const today = getTodayString()
-    const { fetchedPuzzles, fetchedDate, solvedPuzzles } = get()
+    const { puzzlePool, solvedPuzzles } = get()
 
-    const useFetched = fetchedDate === today && !!fetchedPuzzles?.[d]
-    const puzzle     = useFetched ? fetchedPuzzles![d] as Puzzle : getPuzzle(d, getDailyIndex(d, today))
+    let puzzle: Puzzle
+    let puzzleIndex: number
+
+    if (puzzlePool?.[d]?.length) {
+      // Pool available — use dayIndex mod pool size for daily selection
+      const pool = puzzlePool[d] as Puzzle[]
+      puzzleIndex = getDailyIndex(d, today) % pool.length
+      puzzle = pool[puzzleIndex]
+    } else {
+      // Fallback: static library
+      puzzleIndex = getDailyIndex(d, today)
+      puzzle = getPuzzle(d, puzzleIndex)
+    }
+
     const alreadySolved = !!solvedPuzzles[getDailySolvedKey(d, today)]
-
     set({
       screen:             'game',
       currentDifficulty:  d,
-      currentPuzzleIndex: useFetched ? -1 : getDailyIndex(d, today),
+      currentPuzzleIndex: puzzleIndex,
       ...(alreadySolved ? solvedGame(puzzle) : freshGame(puzzle)),
     })
   },
@@ -225,11 +232,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   reset: () => {
-    const { currentDifficulty, currentPuzzleIndex, fetchedPuzzles, fetchedDate } = get()
+    const { currentDifficulty, currentPuzzleIndex, puzzlePool } = get()
     if (!currentDifficulty) return
-    const today = getTodayString()
-    if (fetchedDate === today && fetchedPuzzles?.[currentDifficulty]) {
-      set(freshGame(fetchedPuzzles[currentDifficulty] as Puzzle))
+    const pool = puzzlePool?.[currentDifficulty] as Puzzle[] | undefined
+    if (pool?.length && currentPuzzleIndex >= 0 && currentPuzzleIndex < pool.length) {
+      set(freshGame(pool[currentPuzzleIndex]))
     } else {
       set(freshGame(getPuzzle(currentDifficulty, currentPuzzleIndex)))
     }

@@ -9,12 +9,12 @@ import { useGameStore } from './store'
 import { useIsMobile } from './hooks'
 
 export default function App() {
-  const screen             = useGameStore(s => s.screen)
-  const fetchDailyPuzzles  = useGameStore(s => s.fetchDailyPuzzles)
+  const screen           = useGameStore(s => s.screen)
+  const fetchPuzzlePool  = useGameStore(s => s.fetchPuzzlePool)
 
-  // Fetch today's AI-generated puzzles as early as possible.
-  // Falls back to static library silently if fetch fails.
-  useEffect(() => { fetchDailyPuzzles() }, [fetchDailyPuzzles])
+  // Fetch the puzzle pool once on startup.
+  // Falls back to the static library silently if the fetch fails.
+  useEffect(() => { fetchPuzzlePool() }, [fetchPuzzlePool])
   const selectedShapeId = useGameStore(s => s.selectedShapeId)
   const won             = useGameStore(s => s.won)
   const holding         = selectedShapeId !== null

@@ -1,9 +1,9 @@
 name: Generate Daily Puzzles
 
+# Disabled — puzzles are now pre-generated locally via `npm run generate-pool`
+# and committed to public/puzzle-pool.json. Re-enable if switching back to
+# server-side generation.
 on:
-  schedule:
-    # 22:00 UTC — puzzles ready before midnight in all time zones
-    - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
       date:
