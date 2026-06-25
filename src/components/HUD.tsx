@@ -36,7 +36,7 @@ export function HUD() {
   } = useGameStore()
 
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
-  const hintsUsed     = 5 - hintCount
+  const hintsUsed     = 3 - hintCount
   const meta          = currentDifficulty ? DIFFICULTY_META[currentDifficulty] : null
 
   if (won) {
@@ -98,17 +98,18 @@ export function HUD() {
         onClick={useHint}
         disabled={hintCount <= 0}
         style={{
-          background: hintCount > 0 ? 'rgba(255,200,50,0.15)' : 'rgba(100,100,100,0.1)',
-          border: `1px solid ${hintCount > 0 ? '#ffcc32' : '#444'}`,
+          background: 'transparent',
+          border: 'none',
           borderRadius: 8,
-          color: hintCount > 0 ? '#ffcc32' : '#555',
-          padding: '4px 12px',
-          fontSize: 12,
-          cursor: hintCount > 0 ? 'pointer' : 'not-allowed',
-          fontWeight: 600,
+          color: hintCount > 0 ? '#666' : '#3a3a3a',
+          padding: '4px 8px',
+          fontSize: 11,
+          cursor: hintCount > 0 ? 'pointer' : 'default',
+          fontWeight: 500,
+          opacity: hintCount > 0 ? 1 : 0.4,
         }}
       >
-        Hint ({hintCount}/5)
+        Hint {hintCount > 0 ? `(${hintCount})` : '✕'}
       </button>
 
       <button onClick={reset} style={btnGhost}>

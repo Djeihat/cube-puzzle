@@ -16,7 +16,7 @@ function freshGame(puzzle: Puzzle) {
     placedShapes:    [] as PlacedShape[],
     selectedShapeId: null as string | null,
     hoveredCell:     null as Vec3 | null,
-    hintCount:       5,
+    hintCount:       3,
     hintHighlight:   null as string | null,
     won:             false,
   }
@@ -187,6 +187,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       placedShapes:    newPlacedShapes,
       selectedShapeId: null,
+      hintHighlight:   null,   // dismiss any active hint when a piece is placed
       won:             allPlaced,
       solvedPuzzles:   newSolved,
       puzzle: {
@@ -218,7 +219,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const unplaced = puzzle.shapes.find(s => !s.placed)
     if (!unplaced) return
     set({ hintCount: hintCount - 1, hintHighlight: unplaced.id })
-    setTimeout(() => set({ hintHighlight: null }), 3000)
+    // Stay visible for 10 s — long enough to identify the piece, find it
+    // in the tray, and orient it. Cleared earlier if the player places any piece.
+    setTimeout(() => set({ hintHighlight: null }), 10_000)
   },
 
   reset: () => {

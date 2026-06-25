@@ -349,7 +349,7 @@ export function Container({ container, placedShapes }: Props) {
           key={`hint-${hintHighlight}`}
           cubes={hintShape.cubes}
           color={hintColor}
-          opacity={0.38}
+          opacity={0.55}
           castShadow={false}
         />
       )}

@@ -403,16 +403,27 @@ async function main() {
 
   const client = new Anthropic()
   const result: Record<string, any> = { date }
+  let anyFailed = false
 
   for (const difficulty of ['easy', 'medium', 'hard'] as DifficultyKey[]) {
     console.log(`[${difficulty.toUpperCase()}]`)
-    result[difficulty] = await generatePuzzle(client, difficulty, date)
+    try {
+      result[difficulty] = await generatePuzzle(client, difficulty, date)
+    } catch (err) {
+      console.error(`  FAILED: ${err}`)
+      result[difficulty] = null   // client falls back to static library for this tier
+      anyFailed = true
+    }
     console.log()
   }
 
   const outPath = resolve(process.cwd(), 'public/daily-puzzles.json')
   writeFileSync(outPath, JSON.stringify(result, null, 2))
   console.log(`Written → ${outPath}`)
+  if (anyFailed) {
+    console.warn('One or more difficulties failed — static library fallback will be used for those tiers.')
+    process.exit(1)   // mark action as failed so GitHub notifies, but file is still committed
+  }
 }
 
 main().catch(err => { console.error(err); process.exit(1) })
