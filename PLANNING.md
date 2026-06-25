@@ -8,28 +8,26 @@ AI drives the experience in V2: generating puzzles, providing smart hints, and a
 
 ---
 
-## V1 Scope
+## V1 Scope — COMPLETE ✓
 
-**Completed**
 - Core placement loop: pick up → rotate → ghost preview → place → lift
-- Three difficulty tiers: Easy, Medium, Hard — each with its own puzzle set
-- Irregular container shapes (Medium and Hard)
-- Menu → difficulty page → puzzle selection → game navigation flow
-- Solved-puzzle tracking (persists within session, shown on puzzle cards)
-- Hint system — 5 free hints per puzzle, flashes the solution position of one unplaced piece for 3 s
-- Win detection and non-blocking win screen (player can keep rotating the solved puzzle)
-- Piece lock — placed pieces cannot be lifted after the puzzle is solved
+- Three difficulty tiers: Easy (3–4 pieces), Medium (5 pieces), Hard (6 pieces, chirality constraint)
+- Irregular container shapes for Medium and Hard
+- Daily puzzle format — one puzzle per difficulty per day, no free-play selection
+- Puzzle pool — 152 pre-generated unique puzzles (42 easy / 50 medium / 60 hard), auto-expands monthly via GitHub Action
+- Hard difficulty uses one-sided tetracubes (right-screw ≠ left-screw) as the difficulty differentiator
+- Solved-puzzle tracking persists in localStorage; revisiting a solved difficulty shows the completed puzzle
+- Hint system — 3 hints per puzzle, colored ghost at solution position for 10 s, subtle button
+- Win detection and non-blocking win screen
+- Piece lock — placed pieces cannot be lifted after solved
 - Reset — restarts the current puzzle
-- Beveled piece geometry — B = 0.05 chamfer on all external edges; V-grooves at joins between adjacent cubes of the same piece
-- Turntable scene rotation — the scene group rotates on drag; camera and lights are fixed in world-space so lighting never shifts
-- Exact container wireframe — boundary edges computed from the valid-cell set, not the bounding box
-- Complete Easy puzzle library — 10 hand-authored puzzles across a range of piece counts (3–5 pieces) and container sizes
-- Medium puzzle library redesigned — 3 puzzles with 5, 6, and 7 pieces respectively; irregular containers sized 20–28 cells; all pieces within each puzzle are distinct free polycubes
-- Scrollable piece tray — tray anchored between HUD and screen edge; overflows-y scrolls natively; fade gradient affordance when list is long; WebGL canvas pointer-events disabled so scroll passes through to the container
-
-**Remaining before V1 is called done**
-- Hard puzzle library — current 2 puzzles have 4 pieces each (below the 8–10 target); both need complete redesign plus 8 more puzzles to reach 10/10
-- Update puzzle metadata/names as library grows
+- Beveled piece geometry — B = 0.05 chamfer; V-grooves at internal joins
+- Turntable scene rotation + pinch-to-zoom; camera and lights fixed in world-space
+- Exact container wireframe computed from valid-cell set
+- Mobile interface — horizontal piece tray, on-screen rotation buttons, touch ghost preview, drag-to-place, ghost stays at last snapped position
+- Escape key drops held piece on desktop; subtle rotation hint bar
+- Proprietary copyright notice (LICENSE)
+- CLAUDE.md architecture reference for future sessions
 
 **Deferred polish**
 - Groove end-cap triangles — sub-pixel gaps where V-grooves terminate at piece ends; invisible at normal viewing distances
