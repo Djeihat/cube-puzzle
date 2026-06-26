@@ -250,6 +250,45 @@ function buildBeveledGeometry(cubes: Vec3[]): THREE.BufferGeometry {
           normals.push(gx / gLen, gy / gLen, gz / gLen)
         }
         indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+
+        // ── Groove end-cap triangles ─────────────────────────────────────
+        // Tiny triangles that fill the gap at each groove terminus where the
+        // groove wall meets an external bevel edge.
+        //
+        // Key winding insight (verified by cross-product):
+        //   [sA0, gb0, bv]  →  outward normal ✓   (NOT [sA0, bv, gb0])
+        //   [sA1, bv, gb1]  →  outward normal ✓   (NOT [sA1, gb1, bv])
+        //
+        // Alignment (from bevel quad notation where sA1_bevel aligns with sBStart):
+        //   sA0 end: bv = scPrevB[ePrevB]          (sBStart of prev bevel)
+        //   sA1 end: bv = scNextB[(eNextB+1)%4]    (sBEnd   of next bevel)
+        const nx = gx / gLen, ny = gy / gLen, nz = gz / gLen
+
+        const prevEdge  = (eA - 1 + 4) % 4
+        const prevAdjFi = faceA.edges[prevEdge].adjacentFaceIdx
+        if (faceExternal[prevAdjFi] && scMap[prevAdjFi]) {
+          const scPB = scMap[prevAdjFi]!
+          const fpB  = FACE_DEFS[prevAdjFi]
+          let ePB = 0
+          for (let j = 0; j < 4; j++) { if (fpB.edges[j].adjacentFaceIdx === fi) { ePB = j; break } }
+          const bv = scPB[ePB]
+          const cb = positions.length / 3
+          for (const [sx, sy, sz] of [sA0, gb0, bv]) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
+          indices.push(cb, cb + 1, cb + 2)
+        }
+
+        const nextEdge  = (eA + 1) % 4
+        const nextAdjFi = faceA.edges[nextEdge].adjacentFaceIdx
+        if (faceExternal[nextAdjFi] && scMap[nextAdjFi]) {
+          const scNB = scMap[nextAdjFi]!
+          const fnB  = FACE_DEFS[nextAdjFi]
+          let eNB = 0
+          for (let j = 0; j < 4; j++) { if (fnB.edges[j].adjacentFaceIdx === fi) { eNB = j; break } }
+          const bv = scNB[(eNB + 1) % 4]
+          const cb = positions.length / 3
+          for (const [sx, sy, sz] of [sA1, bv, gb1]) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
+          indices.push(cb, cb + 1, cb + 2)
+        }
       }
     }
 
