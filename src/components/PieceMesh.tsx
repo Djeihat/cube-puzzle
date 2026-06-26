@@ -250,6 +250,41 @@ function buildBeveledGeometry(cubes: Vec3[]): THREE.BufferGeometry {
           normals.push(gx / gLen, gy / gLen, gz / gLen)
         }
         indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+
+        // Groove end-cap triangles — fill the sub-pixel gap at each groove
+        // terminus where the groove wall meets an external bevel edge.
+        //
+        // At corner sA0 (edge eA): gap if edge (eA-1) is external.
+        // In the bevel for edge (eA-1), sA1_bevel = scA[eA] = sA0 aligns
+        // with scPrevB[ePrevB] (= sBStart in bevel notation).
+        const nx = gx / gLen, ny = gy / gLen, nz = gz / gLen
+        const prevEdge   = (eA - 1 + 4) % 4
+        const prevAdjFi  = faceA.edges[prevEdge].adjacentFaceIdx
+        if (faceExternal[prevAdjFi] && scMap[prevAdjFi]) {
+          const scPB = scMap[prevAdjFi]!
+          const fpB  = FACE_DEFS[prevAdjFi]
+          let ePB = 0
+          for (let j = 0; j < 4; j++) { if (fpB.edges[j].adjacentFaceIdx === fi) { ePB = j; break } }
+          const bv   = scPB[ePB]
+          const capB = positions.length / 3
+          for (const [sx, sy, sz] of [sA0, bv, gb0]) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
+          indices.push(capB, capB + 1, capB + 2)
+        }
+
+        // At corner sA1 (edge eA+1): gap if edge (eA+1) is external.
+        // sA0_bevel = scA[(eA+1)%4] = sA1 aligns with scNextB[(eNextB+1)%4].
+        const nextEdge   = (eA + 1) % 4
+        const nextAdjFi  = faceA.edges[nextEdge].adjacentFaceIdx
+        if (faceExternal[nextAdjFi] && scMap[nextAdjFi]) {
+          const scNB = scMap[nextAdjFi]!
+          const fnB  = FACE_DEFS[nextAdjFi]
+          let eNB = 0
+          for (let j = 0; j < 4; j++) { if (fnB.edges[j].adjacentFaceIdx === fi) { eNB = j; break } }
+          const bv   = scNB[(eNB + 1) % 4]
+          const capB = positions.length / 3
+          for (const [sx, sy, sz] of [sA1, gb1, bv]) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
+          indices.push(capB, capB + 1, capB + 2)
+        }
       }
     }
 
