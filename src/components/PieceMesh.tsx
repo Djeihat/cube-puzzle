@@ -267,7 +267,6 @@ function buildBeveledGeometry(cubes: Vec3[]): THREE.BufferGeometry {
         const prevEdge  = (eA - 1 + 4) % 4
         const prevAdjFi = faceA.edges[prevEdge].adjacentFaceIdx
         if (faceExternal[prevAdjFi] && scMap[prevAdjFi]) {
-          // Groove meets bevel — third vertex is the bevel face's shrunk corner
           const scPB = scMap[prevAdjFi]!
           const fpB  = FACE_DEFS[prevAdjFi]
           let ePB = 0
@@ -276,26 +275,11 @@ function buildBeveledGeometry(cubes: Vec3[]): THREE.BufferGeometry {
           const cb = positions.length / 3
           for (const [sx, sy, sz] of [sA0, gb0, bv]) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
           indices.push(cb, cb + 1, cb + 2)
-        } else if (!faceExternal[prevAdjFi]) {
-          // Groove meets groove — fill gap between the two groove bottoms.
-          // gb_prev is the groove-bottom of the adjacent groove at this shared corner.
-          // Winding is determined at runtime via dot-product to avoid face-orientation issues.
-          const pad = FACE_DEFS[prevAdjFi].dir
-          const gb_prev: V3 = [sA0[0]+B*pad[0]-B*nA0, sA0[1]+B*pad[1]-B*nA1, sA0[2]+B*pad[2]-B*nA2]
-          const e1x = gb0[0]-sA0[0], e1y = gb0[1]-sA0[1], e1z = gb0[2]-sA0[2]
-          const e2x = gb_prev[0]-sA0[0], e2y = gb_prev[1]-sA0[1], e2z = gb_prev[2]-sA0[2]
-          const dot = (e1y*e2z-e1z*e2y)*nA0 + (e1z*e2x-e1x*e2z)*nA1 + (e1x*e2y-e1y*e2x)*nA2
-          const tri: V3[] = dot > 0 ? [sA0, gb0, gb_prev] : [sA0, gb_prev, gb0]
-          const cb = positions.length / 3
-          for (const [sx, sy, sz] of tri) { positions.push(sx, sy, sz); normals.push(nx, ny, nz) }
-          indices.push(cb, cb + 1, cb + 2)
         }
-        // sA1 groove-groove case is handled when edge (eA+1) processes its sA0
 
         const nextEdge  = (eA + 1) % 4
         const nextAdjFi = faceA.edges[nextEdge].adjacentFaceIdx
         if (faceExternal[nextAdjFi] && scMap[nextAdjFi]) {
-          // Groove meets bevel at sA1
           const scNB = scMap[nextAdjFi]!
           const fnB  = FACE_DEFS[nextAdjFi]
           let eNB = 0
