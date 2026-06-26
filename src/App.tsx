@@ -6,6 +6,7 @@ import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
 import { MenuScreen } from './components/MenuScreen'
 import { AllCompleteScreen } from './components/AllCompleteScreen'
+import { StatsScreen } from './components/StatsScreen'
 import { useGameStore } from './store'
 import { useIsMobile } from './hooks'
 
@@ -22,7 +23,7 @@ export default function App() {
 
   if (screen === 'menu')         return <MenuScreen />
   if (screen === 'all-complete') return <AllCompleteScreen />
-  if (screen === 'stats')        return <MenuScreen />   {/* placeholder until StatsScreen is built */}
+  if (screen === 'stats')        return <StatsScreen />
 
   return (
     <div
