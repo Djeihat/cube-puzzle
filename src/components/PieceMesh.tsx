@@ -11,7 +11,7 @@ import { RoundedBox } from '@react-three/drei'
 import type { ThreeEvent } from '@react-three/fiber'
 import type { Vec3 } from '../types'
 
-const SIZE   = 0.92   // gap size: 1 - SIZE = 0.08 per side between adjacent cubes
+const SIZE   = 0.95   // gap size: 1 - SIZE = 0.08 per side between adjacent cubes
 const RADIUS = 0.07   // corner roundness
 
 interface Props {
