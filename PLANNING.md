@@ -261,6 +261,18 @@ Each difficulty gets a brand-new AI-generated puzzle every day — no cycling.
 
 ## V2 Roadmap
 
+### Weekly Special Puzzle (tentative)
+A special puzzle released once a week — distinguished by extreme difficulty, a visually unusual container shape, or both. Possible directions:
+- **Extreme hard**: many more pieces than the regular Hard (10–12 pieces), highly irregular container, very few solutions
+- **Unusual container**: shapes that don't fit the standard rectangular/irregular patterns — think star, cross, or interlocking-L profile that creates an interesting silhouette
+- **Both**: a visually striking container that also happens to be brutally hard to fill
+
+Open design questions:
+- Does it replace one of the three daily slots, or appear as a fourth optional puzzle?
+- Does it have its own streak / badge, or just a visual distinction in the menu?
+- Should it be seeded from a smaller curated hand-authored pool, or fully AI-generated?
+- What day of the week? (Sunday feels natural as a "bonus" after the week)
+
 ### Smart hints
 - Directional nudges ("try rotating the blue piece 90° on the Y axis") rather than revealing the solution position outright
 
