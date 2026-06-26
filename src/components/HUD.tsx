@@ -1,5 +1,6 @@
 import { useGameStore } from '../store'
 import { DIFFICULTY_META } from '../puzzle'
+import type { DifficultyKey } from '../puzzle'
 
 const pill: React.CSSProperties = {
   position: 'fixed',
@@ -32,12 +33,15 @@ const divider: React.CSSProperties = {
 export function HUD() {
   const {
     hintCount, useHint, won, reset, puzzle,
-    currentDifficulty, goToMenu,
+    currentDifficulty, goToMenu, stats,
   } = useGameStore()
 
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
   const hintsUsed     = 3 - hintCount
   const meta          = currentDifficulty ? DIFFICULTY_META[currentDifficulty] : null
+  const diffStreak    = currentDifficulty
+    ? stats.streaks[currentDifficulty as DifficultyKey].current
+    : 0
 
   if (won) {
     return (
@@ -51,6 +55,11 @@ export function HUD() {
           <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}>
             {hintsUsed === 0 ? 'No hints used' : `${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used`}
           </div>
+          {diffStreak >= 2 && (
+            <div style={{ color: meta?.color, fontSize: 12, marginTop: 3, fontWeight: 600 }}>
+              🔥 {diffStreak}-day {meta?.label} streak
+            </div>
+          )}
         </div>
 
         <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.1)' }} />
