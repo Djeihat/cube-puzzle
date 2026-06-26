@@ -24,7 +24,8 @@ function freshGame(puzzle: Puzzle) {
 }
 
 // Restores the solved view of a puzzle — pieces at solution positions, won=true.
-function solvedGame(puzzle: Puzzle) {
+// hintsUsed is read from stats so the win bar shows the correct hint count.
+function solvedGame(puzzle: Puzzle, hintsUsed = 0) {
   return {
     puzzle: {
       ...puzzle,
@@ -33,7 +34,7 @@ function solvedGame(puzzle: Puzzle) {
     placedShapes:    puzzle.solution.map(s => ({ ...s })) as PlacedShape[],
     selectedShapeId: null as string | null,
     hoveredCell:     null as Vec3 | null,
-    hintCount:       0,
+    hintCount:       3 - hintsUsed,
     hintHighlight:   null as string | null,
     won:             true,
   }
@@ -147,12 +148,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const alreadySolved = !!solvedPuzzles[getDailySolvedKey(d, today)]
+    const { stats } = get()
+    const todayRec  = stats.history.find(r => r.date === today)
+    const hintsUsed = todayRec?.[d]?.hintsUsed ?? 0
     set({
       screen:             'game',
       currentDifficulty:  d,
       currentPuzzleIndex: puzzleIndex,
       gameStartTime:      alreadySolved ? null : Date.now(),
-      ...(alreadySolved ? solvedGame(puzzle) : freshGame(puzzle)),
+      ...(alreadySolved ? solvedGame(puzzle, hintsUsed) : freshGame(puzzle)),
     })
   },
 
