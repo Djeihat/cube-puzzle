@@ -154,6 +154,18 @@ export function Scene() {
       // On mobile only: if the pointer lands on the ghost piece, enter ghost-drag
       // mode instead of rotating the scene. On desktop the ghost follows the cursor
       // so the raycast would always hit — rotation is handled by turntable as normal.
+
+      // On mobile with a piece held, skip all canvas interaction if the pointer
+      // lands in the rotation-button zone (bottom-right of screen).  The ghost
+      // can overlap the buttons in 3D space, causing ghost-drag to fire when
+      // the player means to tap a rotation button.
+      if (isMobileRef.current && useGameStore.getState().selectedShapeId) {
+        const W = window.innerWidth, H = window.innerHeight
+        if (e.clientX > W - 120 && e.clientY > H - 320 && e.clientY < H - 90) {
+          return  // let the rotation button's own handler take it
+        }
+      }
+
       const cubes = ghostCubesRef.current
       if (cubes && groupRef.current && isMobileRef.current) {
         const rect = domElement.getBoundingClientRect()
