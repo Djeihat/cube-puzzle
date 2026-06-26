@@ -1,13 +1,10 @@
 /**
- * PieceMesh — prototype using RoundedBox per cube.
+ * PieceMesh — one RoundedBox per cube.
  *
- * Each cube is an independent scaled-down RoundedBox (~0.92).
- * The natural gap between adjacent boxes creates visual separation,
- * and rounded corners give the polished look — no custom geometry,
- * no groove walls, no end-cap math.
- *
- * The original beveled merged-mesh version is preserved in
- * PieceMeshBeveled.tsx for comparison / rollback.
+ * Each cube renders as an independent scaled-down RoundedBox.
+ * The natural gap between adjacent boxes provides visual separation;
+ * rounded corners give the polished look — no custom geometry needed.
+ * Tune SIZE (gap) and RADIUS (roundness) to adjust the aesthetic.
  */
 
 import { RoundedBox } from '@react-three/drei'

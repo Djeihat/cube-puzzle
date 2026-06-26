@@ -227,7 +227,7 @@ All difficulties: free polycubes — rotations + reflections allowed. No chirali
 ## Visual Direction
 
 - **Palette**: dark blue room (`#111827` background), warm white ceiling light, blue wall bounce lights
-- **Pieces**: merged geometry — only external faces rendered, no internal seams; B = 0.05 chamfered bevels on external edges; V-grooves at internal joins; `roughness 0.38, metalness 0.04`
+- **Pieces**: one `RoundedBox` (drei) per cube, scaled to 0.92 with radius 0.07; natural gap between adjacent cubes provides visual separation; `roughness 0.38, metalness 0.04`
 - **Ghost cubes**: flat-faced semi-transparent unit cubes (white = valid, red = conflict)
 - **Container (rectangular)**: subtle blue box fill + wireframe
 - **Container (irregular)**: one back-face transparent cube per valid cell + exact boundary wireframe computed from valid-cell set
