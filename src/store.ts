@@ -4,6 +4,7 @@ import { applyRotation, normalizeShape, addOffset, cubesInBounds, cubesOverlap }
 import { getEasyPuzzle, PUZZLE_LIBRARY } from './puzzle'
 import type { DifficultyKey } from './puzzle'
 import { getTodayString, getDailyIndex, getDailySolvedKey } from './daily'
+import { loadStats, saveStats, recordSolve, allDoneToday, type GameStats } from './stats'
 
 function getPuzzle(d: DifficultyKey, i: number): Puzzle {
   return PUZZLE_LIBRARY[d][i]()
@@ -40,13 +41,17 @@ function solvedGame(puzzle: Puzzle) {
 
 interface GameState {
   // ── Navigation ────────────────────────────────────────────────────────────
-  screen:             'menu' | 'game'
+  screen:             'menu' | 'game' | 'stats' | 'all-complete'
   currentDifficulty:  DifficultyKey | null
   currentPuzzleIndex: number
   solvedPuzzles:      Record<string, boolean>  // key: `daily-${difficulty}-${YYYY-MM-DD}`
 
   // ── Puzzle pool (fetched once at startup, rarely changes) ────────────────
   puzzlePool:  Record<DifficultyKey, Puzzle[]> | null
+
+  // ── Stats + streaks ───────────────────────────────────────────────────────
+  stats:         GameStats
+  gameStartTime: number | null   // ms timestamp when current game screen was entered
 
   // ── Active game ───────────────────────────────────────────────────────────
   puzzle:          Puzzle
@@ -59,6 +64,7 @@ interface GameState {
 
   // ── Navigation actions ────────────────────────────────────────────────────
   goToMenu:          () => void
+  goToStats:         () => void
   startDailyPuzzle:  (d: DifficultyKey) => void
   fetchPuzzlePool:   () => Promise<void>
 
@@ -91,6 +97,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentPuzzleIndex: 0,
   solvedPuzzles:      loadSolvedPuzzles(),
   puzzlePool:         null,
+  stats:              loadStats(),
+  gameStartTime:      null,
 
   // ── Game initial state (placeholder until startDailyPuzzle is called) ─────
   ...freshGame(getEasyPuzzle()),
@@ -101,7 +109,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     currentDifficulty: null,
     selectedShapeId:   null,
     hoveredCell:       null,
+    gameStartTime:     null,
   }),
+
+  goToStats: () => set({ screen: 'stats', selectedShapeId: null, hoveredCell: null }),
 
   fetchPuzzlePool: async () => {
     if (get().puzzlePool) return  // already loaded
@@ -140,6 +151,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       screen:             'game',
       currentDifficulty:  d,
       currentPuzzleIndex: puzzleIndex,
+      gameStartTime:      alreadySolved ? null : Date.now(),
       ...(alreadySolved ? solvedGame(puzzle) : freshGame(puzzle)),
     })
   },
@@ -171,7 +183,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   placeShape: (shapeId, offset) => {
-    const { puzzle, placedShapes, currentDifficulty, solvedPuzzles } = get()
+    const { puzzle, placedShapes, currentDifficulty, solvedPuzzles, stats, gameStartTime, hintCount } = get()
     const shape = puzzle.shapes.find(s => s.id === shapeId)
     if (!shape || shape.placed) return false
 
@@ -194,7 +206,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       placedShapes:    newPlacedShapes,
       selectedShapeId: null,
-      hintHighlight:   null,   // dismiss any active hint when a piece is placed
+      hintHighlight:   null,
       won:             allPlaced,
       solvedPuzzles:   newSolved,
       puzzle: {
@@ -202,7 +214,21 @@ export const useGameStore = create<GameState>((set, get) => ({
         shapes: puzzle.shapes.map(s => s.id === shapeId ? { ...s, placed: true } : s),
       },
     })
-    if (allPlaced) saveSolvedPuzzles(newSolved)
+
+    if (allPlaced && currentDifficulty) {
+      saveSolvedPuzzles(newSolved)
+      const timeMs     = gameStartTime ? Date.now() - gameStartTime : 0
+      const hintsUsed  = 3 - hintCount
+      const newStats   = recordSolve(stats, currentDifficulty, hintsUsed, timeMs)
+      saveStats(newStats)
+      // Navigate to all-complete screen if all three difficulties are done today
+      set({
+        stats:         newStats,
+        gameStartTime: null,
+        ...(allDoneToday(newStats) ? { screen: 'all-complete' as const } : {}),
+      })
+    }
+
     return true
   },
 
