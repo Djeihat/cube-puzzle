@@ -154,18 +154,36 @@ export function Container({ container, placedShapes }: Props) {
   )
 
   // ── Hit-box helpers ───────────────────────────────────────────────────────
-  // Convert a pointer event on the bounding-box mesh into a container grid cell.
-  // The hit point is in world space; worldToLocal brings it into the box's local
-  // frame (origin at box centre), then we inset 0.5 along the inward face normal
-  // and floor to the nearest integer cell.
-  function cellFromHit(e: ThreeEvent<PointerEvent | MouseEvent>): Vec3 {
+  // cellFromHit: convert hit to a (clamped) container cell — used for placement.
+  // cellFromHitOrNull: same but returns null when the hit is outside the container
+  //   bounds — used for hover so exterior positions don't set a stale hoveredCell.
+  function rawCellCoords(e: ThreeEvent<PointerEvent | MouseEvent>) {
     const boxLocal = e.object.worldToLocal(e.point.clone())
     const normal = (e as any).face?.normal ?? new THREE.Vector3(0, 1, 0)
     const inset = boxLocal.clone().addScaledVector(normal, -0.5)
-    const cellX = Math.max(0, Math.min(container.x - 1, Math.floor(inset.x + cx)))
-    const cellY = Math.max(0, Math.min(container.y - 1, Math.floor(inset.y + cy)))
-    const cellZ = Math.max(0, Math.min(container.z - 1, Math.floor(inset.z + cz)))
-    const raw = { x: cellX, y: cellY, z: cellZ }
+    return {
+      x: Math.floor(inset.x + cx),
+      y: Math.floor(inset.y + cy),
+      z: Math.floor(inset.z + cz),
+    }
+  }
+
+  function cellFromHit(e: ThreeEvent<PointerEvent | MouseEvent>): Vec3 {
+    const { x, y, z } = rawCellCoords(e)
+    const raw = {
+      x: Math.max(0, Math.min(container.x - 1, x)),
+      y: Math.max(0, Math.min(container.y - 1, y)),
+      z: Math.max(0, Math.min(container.z - 1, z)),
+    }
+    return validCells ? findNearestValidCell(raw, validCells) : raw
+  }
+
+  function cellFromHitOrNull(e: ThreeEvent<PointerEvent | MouseEvent>): Vec3 | null {
+    const { x, y, z } = rawCellCoords(e)
+    if (x < 0 || x >= container.x || y < 0 || y >= container.y || z < 0 || z >= container.z) {
+      return null  // exterior — don't snap to nearest container cell
+    }
+    const raw = { x, y, z }
     return validCells ? findNearestValidCell(raw, validCells) : raw
   }
 
@@ -184,7 +202,10 @@ export function Container({ container, placedShapes }: Props) {
     e.stopPropagation()
     if (!selectedShapeId) return
     if (isMobile && !ghost.dragging) return
-    setHoveredCell(cellFromHit(e))
+    // Use null-returning variant so exterior positions clear hoveredCell rather
+    // than snapping to the nearest container cell (which would cause auto-placement
+    // when the user lifts their finger outside the container).
+    setHoveredCell(cellFromHitOrNull(e))
   }
 
   function handleClick(e: ThreeEvent<MouseEvent>) {
