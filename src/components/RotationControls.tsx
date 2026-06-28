@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useGameStore } from '../store'
 import { useIsMobile } from '../hooks'
+import { ghost } from '../ghostState'
 
 // Maps key → axis + direction
 const KEY_MAP: Record<string, { axis: 'x' | 'y' | 'z'; dir: 1 | -1 }> = {
@@ -70,7 +71,7 @@ export function RotationControls() {
           {MOBILE_BTNS.map(({ axis, dir, label, color }) => (
             <button
               key={label}
-              onPointerDown={(e) => { e.stopPropagation(); rotateSelected(axis, dir) }}
+              onPointerDown={(e) => { e.stopPropagation(); ghost.dragging = false; rotateSelected(axis, dir) }}
               style={{
                 width: 44,
                 height: 44,
@@ -95,7 +96,7 @@ export function RotationControls() {
 
         {/* Drop button */}
         <button
-          onPointerDown={(e) => { e.stopPropagation(); selectShape(null) }}
+          onPointerDown={(e) => { e.stopPropagation(); ghost.dragging = false; selectShape(null) }}
           style={{
             width: '100%',
             height: 36,
