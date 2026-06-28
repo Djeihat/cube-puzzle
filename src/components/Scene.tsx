@@ -23,10 +23,14 @@ export function Scene() {
   const raycasterRef = useRef(new THREE.Raycaster())
   // Ghost drag state — tracks the ghost cube positions (set each render) so the
   // DOM-level onPointerDown can raycast against them without R3F event ordering concerns.
-  const ghostCubesRef    = useRef<Vec3[] | null>(null)
-  const containerHalfRef = useRef({ cx: 0, cy: 0, cz: 0 })
-  const ghostDragging    = useRef(false)
-  const isMobileRef      = useRef(isMobile)
+  const ghostCubesRef       = useRef<Vec3[] | null>(null)
+  const containerHalfRef    = useRef({ cx: 0, cy: 0, cz: 0 })
+  const ghostDragging       = useRef(false)
+  const isMobileRef         = useRef(isMobile)
+  // Stores the last ghost cell position while ghost.dragging was true.
+  // Used after drag ends so the ghost stays where the user left it without
+  // re-running the exterior ghost from stale mouseNDC.
+  const lastDragGhostCell   = useRef<Vec3 | null>(null)
 
   useEffect(() => {
     function onMove(e: PointerEvent) {
@@ -37,6 +41,9 @@ export function Scene() {
     domElement.addEventListener('pointermove', onMove)
     return () => domElement.removeEventListener('pointermove', onMove)
   }, [domElement])
+
+  // Reset last drag position when a different piece is selected
+  useEffect(() => { lastDragGhostCell.current = null }, [selectedShapeId])
 
   // ── Ghost preview ────────────────────────────────────────────────────────
   const selectedShape = puzzle.shapes.find(s => s.id === selectedShapeId && !s.placed)
@@ -61,23 +68,25 @@ export function Scene() {
   // Interior cursor positions are handled by the R3F cell-mesh events (hoveredCell),
   // which remain authoritative for placement clicks.  The plane projection is only
   // used for the ghost DISPLAY; placement always uses hoveredCell.
-  // Default: show ghost just above the container centre when a piece is held
-  // but hoveredCell hasn't been set yet (e.g. on mobile right after selecting
-  // from the tray). The exterior-ghost ray projection overrides this as soon
-  // as the pointer moves over the canvas.
+  // Ghost cell priority (mobile):
+  //   1. hoveredCell    — snapped to a container cell by R3F events
+  //   2. lastDragGhostCell — position stored during the last ghost drag;
+  //                         persists after drag ends so the ghost stays where
+  //                         the user left it without re-running from stale mouseNDC
+  //   3. default        — just above the container centre (on initial selection)
+  //
+  // On desktop the exterior ghost from mouseNDC always overrides (see below).
   let ghostCell: Vec3 | null =
     hoveredCell ??
+    (isMobile && !ghost.dragging ? lastDragGhostCell.current : null) ??
     (selectedShapeId
       ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 1, z: Math.floor(puzzle.container.z / 2) }
       : null)
 
-  // Update exterior ghost from pointer position when:
-  // - desktop (mouse hover drives the ghost naturally), OR
-  // - mobile and actively ghost-dragging, OR
-  // - mobile with no hoveredCell (ghost is in exterior space with no cell to
-  //   snap to — keep it at the last mouseNDC position rather than jumping
-  //   to the default above-container position when ghost.dragging resets)
-  if (selectedShapeId && shapeCubes && groupRef.current && (!isMobile || ghost.dragging || !hoveredCell)) {
+  // Exterior ghost from mouseNDC: runs on desktop always, on mobile only while
+  // actively ghost-dragging (prevents stale mouseNDC from hiding the ghost when
+  // mouseNDC points at the tray after piece selection).
+  if (selectedShapeId && shapeCubes && groupRef.current && (!isMobile || ghost.dragging)) {
     raycasterRef.current.setFromCamera(mouseNDC.current, camera)
     const planeNormal = camera.position.clone().normalize()
     const plane = new THREE.Plane(planeNormal, 0)
@@ -92,10 +101,11 @@ export function Scene() {
         gy >= 0 && gy < puzzle.container.y &&
         gz >= 0 && gz < puzzle.container.z
       if (!inside) {
-        // Exterior: ghost floats freely at the projected cursor position.
         ghostCell = { x: gx, y: gy, z: gz }
+        // Cache so the ghost stays here after ghost.dragging resets
+        if (ghost.dragging) lastDragGhostCell.current = ghostCell
       }
-      // Interior: keep hoveredCell (precise R3F snap).
+      // Interior: keep hoveredCell / lastDragGhostCell / default (R3F snap is authoritative).
     }
   }
 
