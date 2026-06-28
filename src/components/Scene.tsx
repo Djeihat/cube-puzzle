@@ -249,6 +249,18 @@ export function Scene() {
       domElement.releasePointerCapture(e.pointerId)
     }
 
+    // pointercancel fires when the OS interrupts a touch (notification banner,
+    // palm rejection, app switching). pointerup never fires in that case, which
+    // can leave ghost.dragging stuck at true. Clean up without placing.
+    function onPointerCancel(e: PointerEvent) {
+      ghostDragging.current = false
+      ghost.dragging = false
+      ptrs.delete(e.pointerId)
+      if (ptrs.size < 2) pinchDist = 0
+      active = false
+      try { domElement.releasePointerCapture(e.pointerId) } catch {}
+    }
+
     function onWheel(e: WheelEvent) {
       e.preventDefault()
       const dist    = camera.position.length()
@@ -256,16 +268,18 @@ export function Scene() {
       camera.position.setLength(newDist)
     }
 
-    domElement.addEventListener('pointerdown', onPointerDown)
-    domElement.addEventListener('pointermove', onPointerMove)
-    domElement.addEventListener('pointerup',   onPointerUp)
-    domElement.addEventListener('wheel',       onWheel, { passive: false })
+    domElement.addEventListener('pointerdown',   onPointerDown)
+    domElement.addEventListener('pointermove',   onPointerMove)
+    domElement.addEventListener('pointerup',     onPointerUp)
+    domElement.addEventListener('pointercancel', onPointerCancel)
+    domElement.addEventListener('wheel',         onWheel, { passive: false })
 
     return () => {
-      domElement.removeEventListener('pointerdown', onPointerDown)
-      domElement.removeEventListener('pointermove', onPointerMove)
-      domElement.removeEventListener('pointerup',   onPointerUp)
-      domElement.removeEventListener('wheel',       onWheel)
+      domElement.removeEventListener('pointerdown',   onPointerDown)
+      domElement.removeEventListener('pointermove',   onPointerMove)
+      domElement.removeEventListener('pointerup',     onPointerUp)
+      domElement.removeEventListener('pointercancel', onPointerCancel)
+      domElement.removeEventListener('wheel',         onWheel)
     }
   }, [domElement, camera])
 
