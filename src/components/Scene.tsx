@@ -158,15 +158,12 @@ export function Scene() {
       // mode instead of rotating the scene. On desktop the ghost follows the cursor
       // so the raycast would always hit — rotation is handled by turntable as normal.
 
-      // On mobile with a piece held, skip all canvas interaction if the pointer
-      // lands in the rotation-button zone (bottom-right of screen).  The ghost
-      // can overlap the buttons in 3D space, causing ghost-drag to fire when
-      // the player means to tap a rotation button.
-      if (isMobileRef.current && useGameStore.getState().selectedShapeId) {
-        const W = window.innerWidth, H = window.innerHeight
-        if (e.clientX > W - 120 && e.clientY > H - 320 && e.clientY < H - 90) {
-          return  // let the rotation button's own handler take it
-        }
+      // If the tap landed on any UI overlay (rotation buttons, piece tray, etc.)
+      // let that element handle it — don't treat it as a canvas interaction.
+      // elementFromPoint is reliable regardless of screen size or safe-area insets,
+      // replacing the previous hardcoded pixel-zone check.
+      if (document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-ui-overlay]')) {
+        return
       }
 
       const cubes = ghostCubesRef.current
@@ -191,6 +188,9 @@ export function Scene() {
           if (raycasterRef.current.ray.intersectsBox(box)) {
             ghostDragging.current = true
             ghost.dragging = true
+            // Start fresh — clear any hoveredCell from previous interactions
+            // so this drag never inherits a stale snap position.
+            useGameStore.getState().setHoveredCell(null)
             return  // Don't activate turntable
           }
         }

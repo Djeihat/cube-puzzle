@@ -12,7 +12,7 @@ export function ShapeTray() {
 
   if (isMobile) {
     return (
-      <div style={{
+      <div data-ui-overlay style={{
         position: 'fixed',
         bottom: 0,
         left: 0,
@@ -64,7 +64,7 @@ export function ShapeTray() {
 
   // ── Desktop: left-side vertical tray ─────────────────────────────────────
   return (
-    <div style={{ position: 'fixed', left: 20, top: 80, bottom: 20, zIndex: 10 }}>
+    <div data-ui-overlay style={{ position: 'fixed', left: 20, top: 80, bottom: 20, zIndex: 10 }}>
       <div style={{
         height: '100%',
         display: 'flex',

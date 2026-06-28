@@ -55,6 +55,7 @@ export function RotationControls() {
   if (isMobile) {
     return (
       <div
+        data-ui-overlay
         onPointerDown={(e) => e.stopPropagation()}
         style={{
           position: 'fixed',
