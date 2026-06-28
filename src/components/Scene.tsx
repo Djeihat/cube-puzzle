@@ -236,12 +236,19 @@ export function Scene() {
       // Ghost drag ended — place piece at current hoveredCell if one is set
       if (ghostDragging.current) {
         const state = useGameStore.getState()
+        let placed = false
         if (state.selectedShapeId && state.hoveredCell) {
           const shape = state.puzzle.shapes.find(s => s.id === state.selectedShapeId && !s.placed)
           if (shape) {
             const sc = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
-            state.placeShape(state.selectedShapeId, placementOffset(sc, state.hoveredCell))
+            placed = state.placeShape(state.selectedShapeId, placementOffset(sc, state.hoveredCell))
           }
+        }
+        if (!placed) {
+          // Drag ended without placement — clear hoveredCell so any stale
+          // interior position doesn't override the exterior ghost on next render.
+          // (Fixes: ghost jumping back to container after dragging to exterior.)
+          state.setHoveredCell(null)
         }
         ghostDragging.current = false
         ghost.dragging = false
