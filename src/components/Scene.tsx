@@ -71,10 +71,13 @@ export function Scene() {
       ? { x: Math.floor(puzzle.container.x / 2), y: puzzle.container.y + 1, z: Math.floor(puzzle.container.z / 2) }
       : null)
 
-  // Update exterior ghost from pointer position only when:
+  // Update exterior ghost from pointer position when:
   // - desktop (mouse hover drives the ghost naturally), OR
-  // - mobile and the user is actively dragging the ghost piece
-  if (selectedShapeId && shapeCubes && groupRef.current && (!isMobile || ghost.dragging)) {
+  // - mobile and actively ghost-dragging, OR
+  // - mobile with no hoveredCell (ghost is in exterior space with no cell to
+  //   snap to — keep it at the last mouseNDC position rather than jumping
+  //   to the default above-container position when ghost.dragging resets)
+  if (selectedShapeId && shapeCubes && groupRef.current && (!isMobile || ghost.dragging || !hoveredCell)) {
     raycasterRef.current.setFromCamera(mouseNDC.current, camera)
     const planeNormal = camera.position.clone().normalize()
     const plane = new THREE.Plane(planeNormal, 0)
