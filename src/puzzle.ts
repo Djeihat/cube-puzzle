@@ -28,6 +28,40 @@ export const DIFFICULTY_META: Record<DifficultyKey, { label: string; color: stri
   hard:   { label: 'Hard',   color: '#E74C3C' },
 }
 
+// Fixed palette — same 7 colours used across all puzzles.
+const SHAPE_COLORS = ['#4A90D9', '#E67E22', '#2ECC71', '#9B59B6', '#E74C3C', '#1ABC9C', '#F39C12']
+
+// FNV-1a hash over sorted cube coordinates → stable colour index for any shape geometry.
+function hashShape(cubes: Vec3[]): number {
+  const sorted = [...cubes].sort(
+    (a, b) => a.x !== b.x ? a.x - b.x : a.y !== b.y ? a.y - b.y : a.z - b.z,
+  )
+  let h = 2166136261 | 0
+  for (const { x, y, z } of sorted) {
+    h = Math.imul(h ^ x, 16777619)
+    h = Math.imul(h ^ y, 16777619)
+    h = Math.imul(h ^ z, 16777619)
+  }
+  return Math.abs(h)
+}
+
+// Assigns each shape a colour derived from its geometry so the same piece always
+// gets the same colour regardless of which puzzle it appears in or what day it is.
+// If two shapes in one puzzle hash to the same colour, the second gets the next
+// available slot (collision is rare given distinct piece geometries).
+export function assignShapeColors(puzzle: Puzzle): Puzzle {
+  const used = new Set<string>()
+  const shapes = puzzle.shapes.map(s => {
+    const norm = normalizeShape(s.cubes)
+    let idx    = hashShape(norm) % SHAPE_COLORS.length
+    while (used.has(SHAPE_COLORS[idx])) idx = (idx + 1) % SHAPE_COLORS.length
+    const color = SHAPE_COLORS[idx]
+    used.add(color)
+    return { ...s, color }
+  })
+  return { ...puzzle, shapes }
+}
+
 // ── Rotation helpers ──────────────────────────────────────────────────────────
 
 function rotateX(v: Vec3): Vec3 { return { x: v.x, y: -v.z, z: v.y } }

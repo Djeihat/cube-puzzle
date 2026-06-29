@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import type { PlacedShape, Vec3, Puzzle } from './types'
 import { applyRotation, normalizeShape, addOffset, cubesInBounds, cubesOverlap } from './puzzle'
-import { getEasyPuzzle, PUZZLE_LIBRARY } from './puzzle'
+import { getEasyPuzzle, PUZZLE_LIBRARY, assignShapeColors } from './puzzle'
 import type { DifficultyKey } from './puzzle'
-import { getTodayString, getDailyIndex, getDailySolvedKey } from './daily'
+import { getTodayString, getDailyIndex, getDailySolvedKey, getRawDayIndex } from './daily'
 import { loadStats, saveStats, recordSolve, allDoneToday, type GameStats } from './stats'
 
 function getPuzzle(d: DifficultyKey, i: number): Puzzle {
@@ -137,14 +137,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     let puzzleIndex: number
 
     if (puzzlePool?.[d]?.length) {
-      // Pool available — use dayIndex mod pool size for daily selection
+      // Use raw day index (no pre-modulo) so all pool slots are reachable.
+      // getDailyIndex mods by the tiny static-library count, which would cap
+      // pool selection to the first 2–10 puzzles out of 42–60 available.
       const pool = puzzlePool[d] as Puzzle[]
-      puzzleIndex = getDailyIndex(d, today) % pool.length
-      puzzle = pool[puzzleIndex]
+      puzzleIndex = getRawDayIndex(today) % pool.length
+      puzzle = assignShapeColors(pool[puzzleIndex])
     } else {
       // Fallback: static library
       puzzleIndex = getDailyIndex(d, today)
-      puzzle = getPuzzle(d, puzzleIndex)
+      puzzle = assignShapeColors(getPuzzle(d, puzzleIndex))
     }
 
     const alreadySolved = !!solvedPuzzles[getDailySolvedKey(d, today)]

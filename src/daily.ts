@@ -1,6 +1,14 @@
 import type { DifficultyKey } from './puzzle'
 import { PUZZLE_LIBRARY } from './puzzle'
 
+// Raw number of days since the game epoch (2026-01-01), no modulo applied.
+// Use this when selecting from the puzzle pool so all pool slots are reachable.
+export function getRawDayIndex(date: string): number {
+  const epoch  = Date.UTC(2026, 0, 1)
+  const target = new Date(date + 'T00:00:00').getTime()
+  return Math.floor((target - epoch) / 86_400_000)
+}
+
 // Returns today's date as YYYY-MM-DD in local time.
 export function getTodayString(): string {
   const d = new Date()
