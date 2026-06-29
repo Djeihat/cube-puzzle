@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { useGameStore } from '../store'
 import { DIFFICULTY_META } from '../puzzle'
 import type { DifficultyKey } from '../puzzle'
+import { todayRecord } from '../stats'
+import { shareResult, getDayNumber, type ShareData } from '../share'
 
 const pill: React.CSSProperties = {
   position: 'fixed',
@@ -36,12 +39,28 @@ export function HUD() {
     currentDifficulty, goToMenu, stats,
   } = useGameStore()
 
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
+
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
   const hintsUsed     = 3 - hintCount
   const meta          = currentDifficulty ? DIFFICULTY_META[currentDifficulty] : null
   const diffStreak    = currentDifficulty
     ? stats.streaks[currentDifficulty as DifficultyKey].current
     : 0
+
+  async function handleShare() {
+    const rec = todayRecord(stats)
+    const data: ShareData = {
+      dayNumber:   getDayNumber(),
+      results:     { easy: rec?.easy, medium: rec?.medium, hard: rec?.hard },
+      streakLabel: diffStreak >= 1 ? `${diffStreak}-day ${meta?.label} streak` : null,
+    }
+    const result = await shareResult(data)
+    if (result !== 'failed') {
+      setShareStatus(result)
+      setTimeout(() => setShareStatus('idle'), 2500)
+    }
+  }
 
   if (won) {
     return (
@@ -63,6 +82,18 @@ export function HUD() {
         </div>
 
         <div style={{ width: 1, height: 36, background: 'rgba(255,255,255,0.1)' }} />
+
+        <button
+          onClick={handleShare}
+          style={{
+            ...btnGhost,
+            minWidth: 72,
+            color: shareStatus !== 'idle' ? '#4A90D9' : '#aaa',
+            borderColor: shareStatus !== 'idle' ? 'rgba(74,144,217,0.4)' : 'rgba(255,255,255,0.15)',
+          }}
+        >
+          {shareStatus === 'idle' ? 'Share' : shareStatus === 'shared' ? 'Shared ✓' : 'Copied ✓'}
+        </button>
 
         <button onClick={goToMenu} style={btnGhost}>
           Menu

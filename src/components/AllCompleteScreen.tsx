@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useGameStore } from '../store'
 import { DIFFICULTY_META } from '../puzzle'
 import { todayRecord, totalSolved, type DifficultyRecord } from '../stats'
 import { getTodayString } from '../daily'
+import { shareResult, getDayNumber, type ShareData } from '../share'
 
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const
 
@@ -77,11 +79,26 @@ function Particles() {
 export function AllCompleteScreen() {
   const { goToMenu, goToStats, stats } = useGameStore()
 
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
+
   const today      = getTodayString()
   const rec        = todayRecord(stats)
   const dailyStreak = stats.streaks.daily.current
   const longestStr  = stats.streaks.daily.longest
   const allSolved   = totalSolved(stats)
+
+  async function handleShare() {
+    const data: ShareData = {
+      dayNumber:   getDayNumber(),
+      results:     { easy: rec?.easy, medium: rec?.medium, hard: rec?.hard },
+      streakLabel: dailyStreak >= 1 ? `${dailyStreak}-day streak` : null,
+    }
+    const result = await shareResult(data)
+    if (result !== 'failed') {
+      setShareStatus(result)
+      setTimeout(() => setShareStatus('idle'), 2500)
+    }
+  }
 
   const dateLabel = new Date(today + 'T00:00:00').toLocaleDateString(undefined, {
     month: 'long', day: 'numeric',
@@ -157,6 +174,19 @@ export function AllCompleteScreen() {
           }}
         >
           Stats
+        </button>
+        <button
+          onClick={handleShare}
+          style={{
+            background: shareStatus !== 'idle' ? 'rgba(74,144,217,0.12)' : 'rgba(255,255,255,0.06)',
+            border: `1px solid ${shareStatus !== 'idle' ? 'rgba(74,144,217,0.4)' : 'rgba(255,255,255,0.15)'}`,
+            borderRadius: 10,
+            color: shareStatus !== 'idle' ? '#4A90D9' : '#aaa',
+            padding: '10px 20px', fontSize: 13, cursor: 'pointer',
+            minWidth: 88, transition: 'color 0.15s, border-color 0.15s, background 0.15s',
+          }}
+        >
+          {shareStatus === 'idle' ? 'Share' : shareStatus === 'shared' ? 'Shared ✓' : 'Copied ✓'}
         </button>
         <button
           onClick={goToMenu}
