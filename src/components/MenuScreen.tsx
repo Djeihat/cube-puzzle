@@ -77,7 +77,7 @@ export function MenuScreen() {
       {/* Title */}
       <div style={{ marginBottom: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 34, fontWeight: 800, color: '#fff', letterSpacing: -0.5 }}>
-          Cube Puzzle
+          Pittari
         </div>
         <div style={{ color: '#444', fontSize: 12, marginTop: 8, letterSpacing: 2, textTransform: 'uppercase' }}>
           {dateLabel}

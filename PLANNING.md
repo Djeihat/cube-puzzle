@@ -1,4 +1,4 @@
-# Cube Puzzle — Planning Document
+# Pittari — Planning Document
 
 ## Concept
 
