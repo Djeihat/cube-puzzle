@@ -36,7 +36,7 @@ const divider: React.CSSProperties = {
 export function HUD() {
   const {
     hintCount, useHint, won, reset, puzzle,
-    currentDifficulty, goToMenu, stats,
+    currentDifficulty, goToMenu, stats, pause,
   } = useGameStore()
 
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
@@ -154,6 +154,14 @@ export function HUD() {
 
       <button onClick={reset} style={btnGhost}>
         Reset
+      </button>
+
+      <button
+        onClick={pause}
+        style={{ ...btnGhost, padding: '4px 10px' }}
+        title="Pause"
+      >
+        ⏸
       </button>
     </div>
   )

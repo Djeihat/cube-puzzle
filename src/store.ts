@@ -51,8 +51,10 @@ interface GameState {
   puzzlePool:  Record<DifficultyKey, Puzzle[]> | null
 
   // ── Stats + streaks ───────────────────────────────────────────────────────
-  stats:         GameStats
-  gameStartTime: number | null   // ms timestamp when current game screen was entered
+  stats:        GameStats
+  paused:       boolean
+  elapsedMs:    number        // accumulated play time before the current session
+  sessionStart: number | null // wall-clock start of the current session; null when paused / won
 
   // ── Active game ───────────────────────────────────────────────────────────
   puzzle:          Puzzle
@@ -68,6 +70,8 @@ interface GameState {
   goToStats:         () => void
   startDailyPuzzle:  (d: DifficultyKey) => void
   fetchPuzzlePool:   () => Promise<void>
+  pause:             () => void
+  resume:            () => void
 
   // ── Game actions ──────────────────────────────────────────────────────────
   selectShape:     (id: string | null) => void
@@ -98,8 +102,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentPuzzleIndex: 0,
   solvedPuzzles:      loadSolvedPuzzles(),
   puzzlePool:         null,
-  stats:              loadStats(),
-  gameStartTime:      null,
+  stats:        loadStats(),
+  paused:       false,
+  elapsedMs:    0,
+  sessionStart: null,
 
   // ── Game initial state (placeholder until startDailyPuzzle is called) ─────
   ...freshGame(getEasyPuzzle()),
@@ -110,7 +116,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     currentDifficulty: null,
     selectedShapeId:   null,
     hoveredCell:       null,
-    gameStartTime:     null,
+    paused:            false,
+    sessionStart:      null,
+    elapsedMs:         0,
   }),
 
   goToStats: () => set({ screen: 'stats', selectedShapeId: null, hoveredCell: null }),
@@ -157,7 +165,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       screen:             'game',
       currentDifficulty:  d,
       currentPuzzleIndex: puzzleIndex,
-      gameStartTime:      alreadySolved ? null : Date.now(),
+      paused:             false,
+      elapsedMs:          0,
+      sessionStart:       alreadySolved ? null : Date.now(),
       ...(alreadySolved ? solvedGame(puzzle, hintsUsed) : freshGame(puzzle)),
     })
   },
@@ -189,7 +199,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   placeShape: (shapeId, offset) => {
-    const { puzzle, placedShapes, currentDifficulty, solvedPuzzles, stats, gameStartTime, hintCount } = get()
+    const { puzzle, placedShapes, currentDifficulty, solvedPuzzles, stats, hintCount } = get()
     const shape = puzzle.shapes.find(s => s.id === shapeId)
     if (!shape || shape.placed) return false
 
@@ -223,14 +233,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     if (allPlaced && currentDifficulty) {
       saveSolvedPuzzles(newSolved)
-      const timeMs     = gameStartTime ? Date.now() - gameStartTime : 0
-      const hintsUsed  = 3 - hintCount
-      const newStats   = recordSolve(stats, currentDifficulty, hintsUsed, timeMs)
+      const { elapsedMs, sessionStart } = get()
+      const timeMs    = elapsedMs + (sessionStart ? Date.now() - sessionStart : 0)
+      const hintsUsed = 3 - hintCount
+      const newStats  = recordSolve(stats, currentDifficulty, hintsUsed, timeMs)
       saveStats(newStats)
-      // Navigate to all-complete screen if all three difficulties are done today
       set({
-        stats:         newStats,
-        gameStartTime: null,
+        stats:        newStats,
+        sessionStart: null,
         ...(allDoneToday(newStats) ? { screen: 'all-complete' as const } : {}),
       })
     }
@@ -267,10 +277,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { currentDifficulty, currentPuzzleIndex, puzzlePool } = get()
     if (!currentDifficulty) return
     const pool = puzzlePool?.[currentDifficulty] as Puzzle[] | undefined
-    if (pool?.length && currentPuzzleIndex >= 0 && currentPuzzleIndex < pool.length) {
-      set(freshGame(pool[currentPuzzleIndex]))
-    } else {
-      set(freshGame(getPuzzle(currentDifficulty, currentPuzzleIndex)))
-    }
+    const basePuzzle = pool?.length && currentPuzzleIndex >= 0 && currentPuzzleIndex < pool.length
+      ? assignShapeColors(pool[currentPuzzleIndex])
+      : assignShapeColors(getPuzzle(currentDifficulty, currentPuzzleIndex))
+    set({ ...freshGame(basePuzzle), paused: false, elapsedMs: 0, sessionStart: Date.now() })
+  },
+
+  pause: () => {
+    const { won, paused, sessionStart, elapsedMs } = get()
+    if (won || paused) return
+    set({
+      paused:       true,
+      elapsedMs:    sessionStart ? elapsedMs + (Date.now() - sessionStart) : elapsedMs,
+      sessionStart: null,
+    })
+  },
+
+  resume: () => {
+    if (!get().paused) return
+    set({ paused: false, sessionStart: Date.now() })
   },
 }))

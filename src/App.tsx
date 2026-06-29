@@ -4,6 +4,7 @@ import { Scene } from './components/Scene'
 import { ShapeTray } from './components/ShapeTray'
 import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
+import { PauseOverlay } from './components/PauseOverlay'
 import { MenuScreen } from './components/MenuScreen'
 import { AllCompleteScreen } from './components/AllCompleteScreen'
 import { StatsScreen } from './components/StatsScreen'
@@ -11,15 +12,26 @@ import { useGameStore } from './store'
 import { useIsMobile } from './hooks'
 
 export default function App() {
-  const screen           = useGameStore(s => s.screen)
-  const fetchPuzzlePool  = useGameStore(s => s.fetchPuzzlePool)
+  const screen          = useGameStore(s => s.screen)
+  const fetchPuzzlePool = useGameStore(s => s.fetchPuzzlePool)
+  const paused          = useGameStore(s => s.paused)
+  const pause           = useGameStore(s => s.pause)
+  const selectedShapeId = useGameStore(s => s.selectedShapeId)
+  const won             = useGameStore(s => s.won)
+  const holding         = selectedShapeId !== null
 
   // Fetch the puzzle pool once on startup.
   // Falls back to the static library silently if the fetch fails.
   useEffect(() => { fetchPuzzlePool() }, [fetchPuzzlePool])
-  const selectedShapeId = useGameStore(s => s.selectedShapeId)
-  const won             = useGameStore(s => s.won)
-  const holding         = selectedShapeId !== null
+
+  // Auto-pause when the device sleeps or the app is backgrounded.
+  useEffect(() => {
+    function onVisibility() {
+      if (document.hidden && screen === 'game') pause()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [screen, pause])
 
   if (screen === 'menu')         return <MenuScreen />
   if (screen === 'all-complete') return <AllCompleteScreen />
@@ -46,6 +58,7 @@ export default function App() {
       <RotationControls />
       <HUD />
       <Instructions holding={holding} won={won} />
+      {paused && <PauseOverlay />}
     </div>
   )
 }
