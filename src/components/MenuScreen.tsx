@@ -77,9 +77,12 @@ export function MenuScreen() {
       {/* Title */}
       <div style={{ marginBottom: 20, textAlign: 'center' }}>
         <div style={{ fontSize: 34, fontWeight: 800, color: '#fff', letterSpacing: -0.5 }}>
-          Pittari
+          Pittari!
         </div>
-        <div style={{ color: '#444', fontSize: 12, marginTop: 8, letterSpacing: 2, textTransform: 'uppercase' }}>
+        <div style={{ color: '#555', fontSize: 13, marginTop: 6, letterSpacing: 0.3, fontStyle: 'italic' }}>
+          A daily 3D polycube puzzle
+        </div>
+        <div style={{ color: '#444', fontSize: 11, marginTop: 6, letterSpacing: 2, textTransform: 'uppercase' }}>
           {dateLabel}
         </div>
       </div>
