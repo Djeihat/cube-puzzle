@@ -4,7 +4,7 @@ import { PUZZLE_LIBRARY } from './puzzle'
 // Raw number of days since the game epoch (2026-01-01), no modulo applied.
 // Use this when selecting from the puzzle pool so all pool slots are reachable.
 export function getRawDayIndex(date: string): number {
-  const epoch  = Date.UTC(2026, 0, 1)
+  const epoch  = Date.UTC(2026, 5, 22)
   const target = new Date(date + 'T00:00:00').getTime()
   return Math.floor((target - epoch) / 86_400_000)
 }
@@ -23,7 +23,7 @@ export function getTodayString(): string {
 // Accepts an explicit date (not "today") so archive lookups use the same function.
 // Stable as long as puzzles are not reordered — see PLANNING.md archive note.
 export function getDailyIndex(difficulty: DifficultyKey, date: string): number {
-  const epoch    = Date.UTC(2026, 0, 1)              // fixed reference: 2026-01-01
+  const epoch    = Date.UTC(2026, 5, 22)              // fixed reference: 2026-01-01
   const target   = new Date(date).getTime()
   const dayIndex = Math.floor((target - epoch) / 86_400_000)
   const count    = PUZZLE_LIBRARY[difficulty].length

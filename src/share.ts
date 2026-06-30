@@ -13,7 +13,7 @@ export interface ShareData {
 
 export function getDayNumber(): number {
   const today  = getTodayString()
-  const epoch  = Date.UTC(2026, 0, 1)
+  const epoch  = Date.UTC(2026, 5, 22)
   const target = new Date(today + 'T00:00:00').getTime()
   return Math.max(1, Math.floor((target - epoch) / 86_400_000) + 1)
 }
