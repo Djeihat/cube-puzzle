@@ -50,16 +50,24 @@ function hashShape(cubes: Vec3[]): number {
 // If two shapes in one puzzle hash to the same colour, the second gets the next
 // available slot (collision is rare given distinct piece geometries).
 export function assignShapeColors(puzzle: Puzzle): Puzzle {
-  const used = new Set<string>()
+  const used     = new Set<string>()
+  const colorMap = new Map<string, string>()  // shape id → assigned colour
+
   const shapes = puzzle.shapes.map(s => {
     const norm = normalizeShape(s.cubes)
     let idx    = hashShape(norm) % SHAPE_COLORS.length
     while (used.has(SHAPE_COLORS[idx])) idx = (idx + 1) % SHAPE_COLORS.length
     const color = SHAPE_COLORS[idx]
     used.add(color)
+    colorMap.set(s.id, color)
     return { ...s, color }
   })
-  return { ...puzzle, shapes }
+
+  // solution placedShapes also carry colours; keep them in sync so the
+  // solved-puzzle view (which renders from puzzle.solution) matches.
+  const solution = puzzle.solution.map(s => ({ ...s, color: colorMap.get(s.id) ?? s.color }))
+
+  return { ...puzzle, shapes, solution }
 }
 
 // ── Rotation helpers ──────────────────────────────────────────────────────────
