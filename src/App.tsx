@@ -5,6 +5,7 @@ import { ShapeTray } from './components/ShapeTray'
 import { RotationControls } from './components/RotationControls'
 import { HUD } from './components/HUD'
 import { PauseOverlay } from './components/PauseOverlay'
+import { Tutorial } from './components/Tutorial'
 import { MenuScreen } from './components/MenuScreen'
 import { AllCompleteScreen } from './components/AllCompleteScreen'
 import { StatsScreen } from './components/StatsScreen'
@@ -15,6 +16,7 @@ export default function App() {
   const screen          = useGameStore(s => s.screen)
   const fetchPuzzlePool = useGameStore(s => s.fetchPuzzlePool)
   const paused          = useGameStore(s => s.paused)
+  const tutorialOpen    = useGameStore(s => s.tutorialOpen)
   const pause           = useGameStore(s => s.pause)
   const selectedShapeId = useGameStore(s => s.selectedShapeId)
   const won             = useGameStore(s => s.won)
@@ -59,6 +61,7 @@ export default function App() {
       <HUD />
       <Instructions holding={holding} won={won} />
       {paused && <PauseOverlay />}
+      {tutorialOpen && <Tutorial />}
     </div>
   )
 }

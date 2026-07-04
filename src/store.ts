@@ -51,8 +51,9 @@ interface GameState {
   puzzlePool:  Record<DifficultyKey, Puzzle[]> | null
 
   // ── Stats + streaks ───────────────────────────────────────────────────────
-  stats:        GameStats
-  paused:       boolean
+  stats:         GameStats
+  tutorialOpen:  boolean
+  paused:        boolean
   elapsedMs:    number        // accumulated play time before the current session
   sessionStart: number | null // wall-clock start of the current session; null when paused / won
 
@@ -72,6 +73,8 @@ interface GameState {
   fetchPuzzlePool:   () => Promise<void>
   pause:             () => void
   resume:            () => void
+  openTutorial:      () => void
+  closeTutorial:     () => void
 
   // ── Game actions ──────────────────────────────────────────────────────────
   selectShape:     (id: string | null) => void
@@ -103,6 +106,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   solvedPuzzles:      loadSolvedPuzzles(),
   puzzlePool:         null,
   stats:        loadStats(),
+  tutorialOpen: false,
   paused:       false,
   elapsedMs:    0,
   sessionStart: null,
@@ -168,6 +172,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       paused:             false,
       elapsedMs:          0,
       sessionStart:       alreadySolved ? null : Date.now(),
+      tutorialOpen:       !alreadySolved && !localStorage.getItem('tutorialSeen'),
       ...(alreadySolved ? solvedGame(puzzle, hintsUsed) : freshGame(puzzle)),
     })
   },
@@ -281,6 +286,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       ? assignShapeColors(pool[currentPuzzleIndex])
       : assignShapeColors(getPuzzle(currentDifficulty, currentPuzzleIndex))
     set({ ...freshGame(basePuzzle), paused: false, elapsedMs: 0, sessionStart: Date.now() })
+  },
+
+  openTutorial:  () => set({ tutorialOpen: true }),
+  closeTutorial: () => {
+    localStorage.setItem('tutorialSeen', '1')
+    set({ tutorialOpen: false })
   },
 
   pause: () => {
