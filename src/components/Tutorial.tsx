@@ -44,11 +44,18 @@ const CARDS: Card[] = [
   {
     title: "When you're stuck",
     icon: '💡',
-    steps: [
-      'Tap a selected piece again to put it back in the tray.',
-      'Use up to 3 hints per puzzle — each reveals where one piece belongs for 10 seconds.',
-      'The timer pauses automatically if you leave the app. Tap ⏸ any time to pause manually.',
-    ],
+    steps: {
+      mobile: [
+        'Tap the Drop button to send a selected piece back to the tray.',
+        'Use up to 3 hints per puzzle — each reveals where one piece belongs for 10 seconds.',
+        'The timer pauses automatically if you leave the app. Tap ⏸ any time to pause manually.',
+      ],
+      desktop: [
+        'Press Escape to send a selected piece back to the tray.',
+        'Use up to 3 hints per puzzle — each reveals where one piece belongs for 10 seconds.',
+        'The timer pauses automatically if you leave the app. Click ⏸ any time to pause manually.',
+      ],
+    },
   },
 ]
 
