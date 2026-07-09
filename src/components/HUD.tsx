@@ -4,6 +4,7 @@ import { DIFFICULTY_META } from '../puzzle'
 import type { DifficultyKey } from '../puzzle'
 import { todayRecord } from '../stats'
 import { shareResult, getDayNumber, type ShareData } from '../share'
+import { useIsMobile } from '../hooks'
 
 const pill: React.CSSProperties = {
   position: 'fixed',
@@ -40,6 +41,7 @@ export function HUD() {
   } = useGameStore()
 
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
+  const isMobile = useIsMobile()
 
   const unplacedCount = puzzle.shapes.filter(s => !s.placed).length
   const hintsUsed     = 3 - hintCount
@@ -115,8 +117,8 @@ export function HUD() {
 
       <div style={divider} />
 
-      {/* Difficulty badge */}
-      {meta && (
+      {/* Difficulty badge — hidden on mobile to keep pill narrow */}
+      {meta && !isMobile && (
         <>
           <span style={{
             color: meta.color, fontSize: 11, fontWeight: 700,
@@ -152,9 +154,11 @@ export function HUD() {
         Hint {hintCount > 0 ? `(${hintCount})` : '✕'}
       </button>
 
-      <button onClick={reset} style={btnGhost}>
-        Reset
-      </button>
+      {!isMobile && (
+        <button onClick={reset} style={btnGhost}>
+          Reset
+        </button>
+      )}
 
       <button
         onClick={pause}
