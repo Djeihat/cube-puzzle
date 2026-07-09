@@ -243,6 +243,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const hintsUsed = 3 - hintCount
       const newStats  = recordSolve(stats, currentDifficulty, hintsUsed, timeMs)
       saveStats(newStats)
+      ;(window as any).umami?.track('puzzle_solved', { difficulty: currentDifficulty })
       set({
         stats:        newStats,
         sessionStart: null,

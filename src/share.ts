@@ -193,6 +193,7 @@ export async function shareResult(data: ShareData): Promise<'shared' | 'copied' 
       const file = new File([blob], 'pittari.png', { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: `Pittari! Day ${data.dayNumber}` })
+        ;(window as any).umami?.track('share', { method: 'image' })
         return 'shared'
       }
     }
@@ -205,6 +206,7 @@ export async function shareResult(data: ShareData): Promise<'shared' | 'copied' 
   const text = buildShareText(data)
   try {
     await navigator.clipboard.writeText(text)
+    ;(window as any).umami?.track('share', { method: 'clipboard' })
     return 'copied'
   } catch {
     // textarea execCommand fallback for older / non-secure contexts
