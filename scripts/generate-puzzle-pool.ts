@@ -202,31 +202,97 @@ const MEDIUM_CONTAINERS: ContainerSpec[] = [
   return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
 })
 
-// Hard: irregular containers (28 cells each) with 7 one-sided tetracubes (7×4=28).
-// Built by taking a larger box and removing cells to create L/T/notch/staircase shapes.
+// Hard containers — two size tiers, both irregular, one-sided tetracubes.
 function excludeCells(base: Vec3, exclude: Vec3[]): ContainerSpec {
   const excl = new Set(exclude.map(key))
   const cells = allCells(base).filter(v => !excl.has(key(v)))
   return { container: base, validCells: cells, total: cells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
 }
+function fromCells(base: Vec3, validCells: Vec3[]): ContainerSpec {
+  return { container: base, validCells, total: validCells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
+}
 
-const HARD_CONTAINERS: ContainerSpec[] = [
+// Hard 24-cell irregular containers (6 one-sided tetracubes × 4 = 24).
+// Recovered from original medium library — these proved as hard as any hard puzzle.
+const HARD_24_CONTAINERS: ContainerSpec[] = [
+  // M2: stepped container — 3×3×4 bbox, full base narrows to shelf+cap
+  fromCells(c(3,3,4), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(0,0,1),c(1,0,1),c(2,0,1),
+    c(0,0,2),c(1,0,2),c(2,0,2),c(0,0,3),c(1,0,3),c(2,0,3),
+    c(0,1,0),c(1,1,0),c(2,1,0),c(0,1,1),c(1,1,1),c(2,1,1),
+    c(0,1,2),c(1,1,2),c(2,1,2),
+    c(0,2,2),c(1,2,2),c(2,2,2),
+  ]),
+  // M6: wide slab with stepped notch — 4×3×3 bbox
+  fromCells(c(4,3,3), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
+    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
+    c(3,0,2),
+    c(0,1,0),c(1,1,0),c(2,1,0),c(3,1,0),
+    c(0,1,1),c(1,1,1),c(2,1,1),c(3,1,1),
+    c(0,1,2),c(1,1,2),
+    c(0,2,0),c(1,2,0),c(2,2,0),c(0,2,1),c(1,2,1),
+  ]),
+  // M7: top-narrowed cube — 3×3×3 bbox, top layer is 2×3 slab
+  fromCells(c(3,3,3), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(0,0,1),c(1,0,1),c(2,0,1),c(0,0,2),c(1,0,2),c(2,0,2),
+    c(0,1,0),c(1,1,0),c(2,1,0),c(0,1,1),c(1,1,1),c(2,1,1),c(0,1,2),c(1,1,2),c(2,1,2),
+    c(0,2,0),c(1,2,0),c(0,2,1),c(1,2,1),c(0,2,2),c(1,2,2),
+  ]),
+  // M8: L-corner slab — 4×2×4 bbox, far corner 2×2 removed from both layers
+  fromCells(c(4,2,4), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
+    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
+    c(0,0,2),c(1,0,2),
+    c(0,0,3),c(1,0,3),
+    c(0,1,0),c(1,1,0),c(2,1,0),c(3,1,0),
+    c(0,1,1),c(1,1,1),c(2,1,1),c(3,1,1),
+    c(0,1,2),c(1,1,2),
+    c(0,1,3),c(1,1,3),
+  ]),
+]
+
+// Hard 28-cell irregular containers (7 one-sided tetracubes × 4 = 28).
+// Includes original old-medium shapes (M3/M9/M10) plus generated L/T/notch/staircase.
+const HARD_28_CONTAINERS: ContainerSpec[] = [
+  // M3: tall container — 2×4×4 bbox, top two layers narrower (3 cols instead of 4)
+  fromCells(c(2,4,4), [
+    c(0,0,0),c(1,0,0),c(0,0,1),c(1,0,1),c(0,0,2),c(1,0,2),c(0,0,3),c(1,0,3),
+    c(0,1,0),c(1,1,0),c(0,1,1),c(1,1,1),c(0,1,2),c(1,1,2),c(0,1,3),c(1,1,3),
+    c(0,2,0),c(1,2,0),c(0,2,1),c(1,2,1),c(0,2,2),c(1,2,2),
+    c(0,3,0),c(1,3,0),c(0,3,1),c(1,3,1),c(0,3,2),c(1,3,2),
+  ]),
+  // M9: stepped slab — 4×2×4 bbox, full base + 3-wide top (x=3 column removed)
+  fromCells(c(4,2,4), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
+    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
+    c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
+    c(0,0,3),c(1,0,3),c(2,0,3),c(3,0,3),
+    c(0,1,0),c(1,1,0),c(2,1,0),
+    c(0,1,1),c(1,1,1),c(2,1,1),
+    c(0,1,2),c(1,1,2),c(2,1,2),
+    c(0,1,3),c(1,1,3),c(2,1,3),
+  ]),
+  // M10: staircase prism — 4×3×4 bbox, each row one step narrower
+  fromCells(c(4,3,4), [
+    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
+    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
+    c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
+    c(0,0,3),c(1,0,3),c(2,0,3),c(3,0,3),
+    c(0,1,0),c(1,1,0),
+    c(0,1,1),c(1,1,1),
+    c(0,1,2),c(1,1,2),
+    c(0,1,3),c(1,1,3),
+    c(0,2,0),c(0,2,1),c(0,2,2),c(0,2,3),
+  ]),
   // L-shape A: 4×4×2 minus top-right 1×2×2 strip = 28 cells
-  excludeCells(c(4,4,2), [
-    c(3,2,0),c(3,3,0),c(3,2,1),c(3,3,1),
-  ]),
+  excludeCells(c(4,4,2), [c(3,2,0),c(3,3,0),c(3,2,1),c(3,3,1)]),
   // L-shape B: 4×4×2 minus bottom-left 1×2×2 strip = 28 cells
-  excludeCells(c(4,4,2), [
-    c(0,0,0),c(0,1,0),c(0,0,1),c(0,1,1),
-  ]),
+  excludeCells(c(4,4,2), [c(0,0,0),c(0,1,0),c(0,0,1),c(0,1,1)]),
   // T-shape: 4×4×2 minus top-left and top-right 1×1×2 corners = 28 cells
-  excludeCells(c(4,4,2), [
-    c(0,3,0),c(0,3,1),c(3,3,0),c(3,3,1),
-  ]),
+  excludeCells(c(4,4,2), [c(0,3,0),c(0,3,1),c(3,3,0),c(3,3,1)]),
   // Notch: 4×4×2 minus 1×2×2 middle-top notch = 28 cells
-  excludeCells(c(4,4,2), [
-    c(1,3,0),c(2,3,0),c(1,3,1),c(2,3,1),
-  ]),
+  excludeCells(c(4,4,2), [c(1,3,0),c(2,3,0),c(1,3,1),c(2,3,1)]),
   // 3D staircase A: 4×3×3 minus top-far 4×1×2 band = 28 cells
   excludeCells(c(4,3,3), [
     c(0,2,1),c(1,2,1),c(2,2,1),c(3,2,1),
@@ -351,10 +417,11 @@ async function main() {
   const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 6, FREE_TETRACUBE_NAMES, [], 60)
   console.log(` ${mediumPool.length} puzzles (+${mediumPool.length - prevCounts.medium} new)`)
 
-  // Hard: one-sided polycubes (right-screw ≠ left-screw), 7 pieces × 4 cubes = 28 cells
+  // Hard: two passes — 24-cell irregular (6 pieces) then 28-cell irregular (7 pieces).
   // Start fresh — container source changed; regenerate completely.
   process.stdout.write('[HARD] ')
-  const hardPool = generatePool('hard', HARD_CONTAINERS, 7, ONESIDED_TETRACUBE_NAMES, [], 60)
+  const hard6 = generatePool('hard', HARD_24_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, [], 60)
+  const hardPool = generatePool('hard', HARD_28_CONTAINERS, 7, ONESIDED_TETRACUBE_NAMES, hard6, 60)
   console.log(` ${hardPool.length} puzzles (+${hardPool.length - prevCounts.hard} new)`)
 
   const ms = Date.now() - t0
