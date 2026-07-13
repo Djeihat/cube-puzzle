@@ -202,9 +202,42 @@ const MEDIUM_CONTAINERS: ContainerSpec[] = [
   return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
 })
 
-// Hard: same rectangular prism containers with one-sided tetracubes
-// (right-screw ≠ left-screw adds chirality difficulty)
-const HARD_CONTAINERS: ContainerSpec[] = MEDIUM_CONTAINERS
+// Hard: irregular containers (24 cells each) with one-sided tetracubes.
+// Built by taking a larger box and removing a block to create L/T/S/staircase shapes.
+function excludeCells(base: Vec3, exclude: Vec3[]): ContainerSpec {
+  const excl = new Set(exclude.map(key))
+  const cells = allCells(base).filter(v => !excl.has(key(v)))
+  return { container: base, validCells: cells, total: cells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
+}
+
+const HARD_CONTAINERS: ContainerSpec[] = [
+  // L-shape: 4×4×2 minus bottom-right 2×2×2 corner = 24 cells
+  excludeCells(c(4,4,2), [
+    c(2,0,0),c(3,0,0),c(2,1,0),c(3,1,0),
+    c(2,0,1),c(3,0,1),c(2,1,1),c(3,1,1),
+  ]),
+  // L-shape rotated: 4×4×2 minus top-left 2×2×2 corner = 24 cells
+  excludeCells(c(4,4,2), [
+    c(0,2,0),c(1,2,0),c(0,3,0),c(1,3,0),
+    c(0,2,1),c(1,2,1),c(0,3,1),c(1,3,1),
+  ]),
+  // T-shape: 4×4×2 minus top-left and top-right 1×2×2 strips = 24 cells
+  excludeCells(c(4,4,2), [
+    c(0,2,0),c(0,3,0),c(0,2,1),c(0,3,1),
+    c(3,2,0),c(3,3,0),c(3,2,1),c(3,3,1),
+  ]),
+  // S-shape: 4×4×2 minus opposite corners = 24 cells
+  excludeCells(c(4,4,2), [
+    c(2,3,0),c(3,3,0),c(2,3,1),c(3,3,1),
+    c(0,0,0),c(1,0,0),c(0,0,1),c(1,0,1),
+  ]),
+  // 3D staircase: 4×3×3 bounding box minus 12 cells = 24 cells
+  excludeCells(c(4,3,3), [
+    c(0,2,1),c(1,2,1),c(2,2,1),c(3,2,1),
+    c(0,2,2),c(1,2,2),c(2,2,2),c(3,2,2),
+    c(0,1,2),c(1,1,2),c(2,1,2),c(3,1,2),
+  ]),
+]
 
 // ── pool generation ───────────────────────────────────────────────────────────
 
