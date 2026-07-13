@@ -8,9 +8,9 @@
  * its container cells + sorted piece names so no two pool entries are identical.
  *
  * Difficulty tiers:
- *   easy   — 3 or 4 distinct tetracubes, rectangular containers
- *   medium — 5 distinct tetracubes, 20-cell irregular containers
- *   hard   — 6 distinct tetracubes, 24-cell irregular containers
+ *   easy   — 3 or 4 distinct tetracubes, rectangular containers (12 or 16 cells)
+ *   medium — 6 distinct free tetracubes, rectangular prism containers (24 cells)
+ *   hard   — 6 one-sided tetracubes (right-screw ≠ left-screw), same rectangular containers
  */
 
 import { writeFileSync, readFileSync, existsSync } from 'fs'
@@ -191,19 +191,20 @@ const EASY_CONTAINERS: ContainerSpec[] = (() => {
   return specs
 })()
 
-// Medium: 20-cell irregular containers (puzzles 1, 4, 5)
-// Hard: 24-cell irregular containers (puzzles 2, 6, 7, 8)
-const MEDIUM_CONTAINERS: ContainerSpec[] = []
-const HARD_CONTAINERS:   ContainerSpec[] = []
-
-PUZZLE_LIBRARY.medium.forEach((factory, i) => {
-  const p = factory()
-  const cells = p.validCells ?? allCells(p.container)
-  const total = cells.length
-  const spec = { container: p.container, validCells: cells, total, label: `medium-${i+1}` }
-  if (total === 20) MEDIUM_CONTAINERS.push(spec)
-  if (total === 24) HARD_CONTAINERS.push(spec)
+// Medium: 24-cell rectangular prism containers — all unique axis-permutations of
+// 2×3×4 (6 orientations) and 2×2×6 (3 orientations). 6 tetracubes × 4 = 24 cells.
+const MEDIUM_CONTAINERS: ContainerSpec[] = [
+  {x:2,y:3,z:4}, {x:2,y:4,z:3}, {x:3,y:2,z:4},
+  {x:3,y:4,z:2}, {x:4,y:2,z:3}, {x:4,y:3,z:2},
+  {x:2,y:2,z:6}, {x:2,y:6,z:2}, {x:6,y:2,z:2},
+].map(d => {
+  const cells = allCells(d)
+  return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
 })
+
+// Hard: same rectangular prism containers with one-sided tetracubes
+// (right-screw ≠ left-screw adds chirality difficulty)
+const HARD_CONTAINERS: ContainerSpec[] = MEDIUM_CONTAINERS
 
 // ── pool generation ───────────────────────────────────────────────────────────
 
@@ -311,14 +312,16 @@ async function main() {
   }
   console.log(` ${easyPool.length} puzzles (+${easyPool.length - prevCounts.easy} new)`)
 
-  // Medium: free polycubes, 5 pieces × 4 cubes = 20 cells
+  // Medium: free polycubes, 6 pieces × 4 cubes = 24 cells, rectangular containers
+  // Start fresh — old pool used irregular containers; regenerate completely.
   process.stdout.write('[MEDIUM] ')
-  const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 5, FREE_TETRACUBE_NAMES, existing.medium ?? [], 60)
+  const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 6, FREE_TETRACUBE_NAMES, [], 60)
   console.log(` ${mediumPool.length} puzzles (+${mediumPool.length - prevCounts.medium} new)`)
 
   // Hard: one-sided polycubes (right-screw ≠ left-screw), 6 pieces × 4 cubes = 24 cells
+  // Start fresh — container source changed; regenerate completely.
   process.stdout.write('[HARD] ')
-  const hardPool = generatePool('hard', HARD_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, existing.hard ?? [], 60)
+  const hardPool = generatePool('hard', HARD_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, [], 60)
   console.log(` ${hardPool.length} puzzles (+${hardPool.length - prevCounts.hard} new)`)
 
   const ms = Date.now() - t0
