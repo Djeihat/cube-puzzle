@@ -192,6 +192,15 @@ export async function shareResult(data: ShareData): Promise<'shared' | 'copied' 
     if (blob) {
       const file = new File([blob], 'pittari.png', { type: 'image/png' })
       if (navigator.canShare?.({ files: [file] })) {
+        // Pre-copy the PNG to clipboard before the share sheet opens.
+        // Apps like Instagram DMs ignore files received via Web Share API, so
+        // users can long-press → paste in the compose view as a fallback.
+        try {
+          if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined') {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+          }
+        } catch { /* best-effort */ }
+
         await navigator.share({ files: [file], title: `Pittari! Day ${data.dayNumber}` })
         ;(window as any).umami?.track('share', { method: 'image' })
         return 'shared'
