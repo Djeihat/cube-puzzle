@@ -10,11 +10,9 @@
     "preview": "vite preview",
     "validate": "vite-node scripts/validate-puzzles.ts",
     "solve": "vite-node scripts/solve-puzzle.ts",
-    "generate": "vite-node scripts/generate-daily-puzzles.ts",
     "generate-pool": "vite-node scripts/generate-puzzle-pool.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.98.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "react": "^19.2.6",

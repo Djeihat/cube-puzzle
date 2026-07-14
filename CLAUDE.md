@@ -22,7 +22,6 @@ React 19 · @react-three/fiber v9 · three.js ^0.169 · Zustand v5 · Vite · Ty
 | `src/daily.ts` | `getDailyIndex(difficulty, date)`, `getDailySolvedKey()`, `getTodayString()` |
 | `src/hooks.ts` | `useIsMobile()` — `pointer: coarse` media query |
 | `src/dragState.ts` | Tiny shared flag: `drag.occurred` prevents drag-release from placing a piece |
-| `src/generation.ts` | AI puzzle generation (Claude API, lazy-imported) |
 
 ### Puzzle files (one per puzzle)
 `src/puzzle-easy.ts` (10 puzzles) · `src/puzzle-medium-{1..10}.ts` · `src/puzzle-hard-{1,2}.ts`
@@ -34,7 +33,6 @@ Each file: `import type { Vec3, Puzzle, PlacedShape, PuzzleShape } from './types
 |------|-------------|
 | `src/App.tsx` | Screen router (`menu/difficulty/game`) + `Instructions` overlay |
 | `src/components/MenuScreen.tsx` | 3 difficulty cards with solved count |
-| `src/components/DifficultyScreen.tsx` | Numbered puzzle grid + AI generate button |
 | `src/components/Scene.tsx` | R3F scene: turntable drag, ghost preview, lights, shadow floor |
 | `src/components/Container.tsx` | Hit meshes, wireframe, empty cells, placed pieces, hint highlight |
 | `src/components/ShapeTray.tsx` | Left-side scrollable piece tray |
@@ -49,10 +47,11 @@ Each file: `import type { Vec3, Puzzle, PlacedShape, PuzzleShape } from './types
 |------|-------------|
 | `scripts/validate-puzzles.ts` | Checks every puzzle for cell count, overlaps, bounds, connectivity |
 | `scripts/solve-puzzle.ts` | Backtracking solver — edit CONFIG at bottom, run to get paste-ready code |
+| `scripts/generate-puzzle-pool.ts` | Deterministic backtracking generator — writes `public/puzzle-pool.json` (42 easy, 42 medium, 60 hard puzzles) |
 
 ## State shape (store.ts)
 ```
-screen: 'menu' | 'difficulty' | 'game'
+screen: 'menu' | 'game' | 'stats' | 'all-complete'
 currentDifficulty: DifficultyKey | null
 currentPuzzleIndex: number
 solvedPuzzles: Record<string, boolean>  // key: `${difficulty}-${index}` (free-play) or `daily-${difficulty}-${date}`
