@@ -19,6 +19,7 @@ function freshGame(puzzle: Puzzle) {
     hoveredCell:     null as Vec3 | null,
     hintCount:       3,
     hintHighlight:   null as string | null,
+    lastHintedId:    null as string | null,
     won:             false,
   }
 }
@@ -36,6 +37,7 @@ function solvedGame(puzzle: Puzzle, hintsUsed = 0) {
     hoveredCell:     null as Vec3 | null,
     hintCount:       3 - hintsUsed,
     hintHighlight:   null as string | null,
+    lastHintedId:    null as string | null,
     won:             true,
   }
 }
@@ -64,6 +66,7 @@ interface GameState {
   hoveredCell:     Vec3 | null
   hintCount:       number
   hintHighlight:   string | null
+  lastHintedId:    string | null
   won:             boolean
 
   // ── Navigation actions ────────────────────────────────────────────────────
@@ -85,6 +88,8 @@ interface GameState {
   useHint:         () => void
   reset:           () => void
 }
+
+let hintTimer: ReturnType<typeof setTimeout> | null = null
 
 // Persist solved state across page refreshes so today's puzzle stays locked.
 function loadSolvedPuzzles(): Record<string, boolean> {
@@ -269,14 +274,24 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   useHint: () => {
-    const { hintCount, puzzle } = get()
+    const { hintCount, puzzle, lastHintedId } = get()
     if (hintCount <= 0) return
-    const unplaced = puzzle.shapes.find(s => !s.placed)
-    if (!unplaced) return
-    set({ hintCount: hintCount - 1, hintHighlight: unplaced.id })
-    // Stay visible for 10 s — long enough to identify the piece, find it
-    // in the tray, and orient it. Cleared earlier if the player places any piece.
-    setTimeout(() => set({ hintHighlight: null }), 10_000)
+    const unplaced = puzzle.shapes.filter(s => !s.placed)
+    if (!unplaced.length) return
+
+    // Advance past the last hinted piece so each tap reveals a different piece.
+    // If lastHintedId is placed or not found, fall back to the first unplaced.
+    let target = unplaced[0]
+    if (lastHintedId) {
+      const lastIdx = unplaced.findIndex(s => s.id === lastHintedId)
+      if (lastIdx !== -1 && lastIdx + 1 < unplaced.length) {
+        target = unplaced[lastIdx + 1]
+      }
+    }
+
+    if (hintTimer) clearTimeout(hintTimer)
+    hintTimer = setTimeout(() => set({ hintHighlight: null }), 10_000)
+    set({ hintCount: hintCount - 1, hintHighlight: target.id, lastHintedId: target.id })
   },
 
   reset: () => {
