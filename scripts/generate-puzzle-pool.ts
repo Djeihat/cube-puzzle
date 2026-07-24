@@ -8,9 +8,12 @@
  * its container cells + sorted piece names so no two pool entries are identical.
  *
  * Difficulty tiers:
- *   easy   — 3 or 4 distinct tetracubes, rectangular containers (12 or 16 cells)
- *   medium — 6 distinct free tetracubes, rectangular prism containers (24 cells)
- *   hard   — 6 one-sided tetracubes (right-screw ≠ left-screw), same rectangular containers
+ *   easy   — 3 or 4 distinct free tetracubes, rectangular containers (12 or 16 cells)
+ *   medium — 5 or 6 distinct free tetracubes, rectangular containers (20 or 24 cells)
+ *            5-piece: 2×2×5 family (3 orientations)
+ *            6-piece: 2×3×4 / 2×2×6 family (9 orientations)
+ *   hard   — 7 distinct one-sided tetracubes (right-screw ≠ left-screw),
+ *            irregular 28-cell containers
  */
 
 import { writeFileSync, readFileSync, existsSync } from 'fs'
@@ -191,9 +194,17 @@ const EASY_CONTAINERS: ContainerSpec[] = (() => {
   return specs
 })()
 
-// Medium: 24-cell rectangular prism containers — all unique axis-permutations of
-// 2×3×4 (6 orientations) and 2×2×6 (3 orientations). 6 tetracubes × 4 = 24 cells.
-const MEDIUM_CONTAINERS: ContainerSpec[] = [
+// Medium 20-cell: all axis-permutations of 2×2×5. 5 tetracubes × 4 = 20 cells.
+// (The only meaningfully 3D rectangular container at this cell count.)
+const MEDIUM_20_CONTAINERS: ContainerSpec[] = [
+  {x:2,y:2,z:5}, {x:2,y:5,z:2}, {x:5,y:2,z:2},
+].map(d => {
+  const cells = allCells(d)
+  return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
+})
+
+// Medium 24-cell: all axis-permutations of 2×3×4 (6) and 2×2×6 (3). 6 tetracubes × 4 = 24 cells.
+const MEDIUM_24_CONTAINERS: ContainerSpec[] = [
   {x:2,y:3,z:4}, {x:2,y:4,z:3}, {x:3,y:2,z:4},
   {x:3,y:4,z:2}, {x:4,y:2,z:3}, {x:4,y:3,z:2},
   {x:2,y:2,z:6}, {x:2,y:6,z:2}, {x:6,y:2,z:2},
@@ -202,7 +213,7 @@ const MEDIUM_CONTAINERS: ContainerSpec[] = [
   return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
 })
 
-// Hard containers — two size tiers, both irregular, one-sided tetracubes.
+// Hard containers — irregular 28-cell, one-sided tetracubes (7 pieces × 4 = 28).
 function excludeCells(base: Vec3, exclude: Vec3[]): ContainerSpec {
   const excl = new Set(exclude.map(key))
   const cells = allCells(base).filter(v => !excl.has(key(v)))
@@ -211,46 +222,6 @@ function excludeCells(base: Vec3, exclude: Vec3[]): ContainerSpec {
 function fromCells(base: Vec3, validCells: Vec3[]): ContainerSpec {
   return { container: base, validCells, total: validCells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
 }
-
-// Hard 24-cell irregular containers (6 one-sided tetracubes × 4 = 24).
-// Recovered from original medium library — these proved as hard as any hard puzzle.
-const HARD_24_CONTAINERS: ContainerSpec[] = [
-  // M2: stepped container — 3×3×4 bbox, full base narrows to shelf+cap
-  fromCells(c(3,3,4), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(0,0,1),c(1,0,1),c(2,0,1),
-    c(0,0,2),c(1,0,2),c(2,0,2),c(0,0,3),c(1,0,3),c(2,0,3),
-    c(0,1,0),c(1,1,0),c(2,1,0),c(0,1,1),c(1,1,1),c(2,1,1),
-    c(0,1,2),c(1,1,2),c(2,1,2),
-    c(0,2,2),c(1,2,2),c(2,2,2),
-  ]),
-  // M6: wide slab with stepped notch — 4×3×3 bbox
-  fromCells(c(4,3,3), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
-    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
-    c(3,0,2),
-    c(0,1,0),c(1,1,0),c(2,1,0),c(3,1,0),
-    c(0,1,1),c(1,1,1),c(2,1,1),c(3,1,1),
-    c(0,1,2),c(1,1,2),
-    c(0,2,0),c(1,2,0),c(2,2,0),c(0,2,1),c(1,2,1),
-  ]),
-  // M7: top-narrowed cube — 3×3×3 bbox, top layer is 2×3 slab
-  fromCells(c(3,3,3), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(0,0,1),c(1,0,1),c(2,0,1),c(0,0,2),c(1,0,2),c(2,0,2),
-    c(0,1,0),c(1,1,0),c(2,1,0),c(0,1,1),c(1,1,1),c(2,1,1),c(0,1,2),c(1,1,2),c(2,1,2),
-    c(0,2,0),c(1,2,0),c(0,2,1),c(1,2,1),c(0,2,2),c(1,2,2),
-  ]),
-  // M8: L-corner slab — 4×2×4 bbox, far corner 2×2 removed from both layers
-  fromCells(c(4,2,4), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
-    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
-    c(0,0,2),c(1,0,2),
-    c(0,0,3),c(1,0,3),
-    c(0,1,0),c(1,1,0),c(2,1,0),c(3,1,0),
-    c(0,1,1),c(1,1,1),c(2,1,1),c(3,1,1),
-    c(0,1,2),c(1,1,2),
-    c(0,1,3),c(1,1,3),
-  ]),
-]
 
 // Hard 28-cell irregular containers (7 one-sided tetracubes × 4 = 28).
 // Includes original old-medium shapes (M3/M9/M10) plus generated L/T/notch/staircase.
@@ -411,17 +382,17 @@ async function main() {
   }
   console.log(` ${easyPool.length} puzzles (+${easyPool.length - prevCounts.easy} new)`)
 
-  // Medium: free polycubes, 6 pieces × 4 cubes = 24 cells, rectangular containers
-  // Start fresh — old pool used irregular containers; regenerate completely.
+  // Medium: two passes — 5-piece 20-cell first, then 6-piece 24-cell fills to 60.
+  // Start fresh — difficulty spec changed; regenerate completely.
   process.stdout.write('[MEDIUM] ')
-  const mediumPool = generatePool('medium', MEDIUM_CONTAINERS, 6, FREE_TETRACUBE_NAMES, [], 60)
+  const medium5 = generatePool('medium', MEDIUM_20_CONTAINERS, 5, FREE_TETRACUBE_NAMES, [], 60)
+  const mediumPool = generatePool('medium', MEDIUM_24_CONTAINERS, 6, FREE_TETRACUBE_NAMES, medium5, 60)
   console.log(` ${mediumPool.length} puzzles (+${mediumPool.length - prevCounts.medium} new)`)
 
-  // Hard: two passes — 24-cell irregular (6 pieces) then 28-cell irregular (7 pieces).
-  // Start fresh — container source changed; regenerate completely.
+  // Hard: pure 7-piece, 28-cell irregular containers.
+  // Start fresh — dropping 6-piece hard tier; regenerate completely.
   process.stdout.write('[HARD] ')
-  const hard6 = generatePool('hard', HARD_24_CONTAINERS, 6, ONESIDED_TETRACUBE_NAMES, [], 60)
-  const hardPool = generatePool('hard', HARD_28_CONTAINERS, 7, ONESIDED_TETRACUBE_NAMES, hard6, 60)
+  const hardPool = generatePool('hard', HARD_28_CONTAINERS, 7, ONESIDED_TETRACUBE_NAMES, [], 60)
   console.log(` ${hardPool.length} puzzles (+${hardPool.length - prevCounts.hard} new)`)
 
   const ms = Date.now() - t0
