@@ -40,13 +40,34 @@ const PIECE_COLORS: Record<string, string> = {
   'left-screw':  '#E91E63',  // pink
 }
 
-// Build a lookup: every orientation shapeKey of every known tetracube → its colour.
-// Built once at module init so assignShapeColors is O(n) with no allocations.
 const vkey = (v: Vec3) => `${v.x},${v.y},${v.z}`
 const shapeKey = (cubes: Vec3[]) => cubes.map(vkey).sort().join('|')
 
-const SHAPE_TO_COLOR: Map<string, string> = (() => {
-  const bases: Record<string, Vec3[]> = {
+// Returns the lexicographically smallest shapeKey across all rotations —
+// a rotation-invariant fingerprint that uniquely identifies each tetracube type.
+function canonicalKey(cubes: Vec3[]): string {
+  const keys: string[] = []
+  const seen = new Set<string>()
+  let c1 = cubes
+  for (let xi = 0; xi < 4; xi++) {
+    let c2 = c1
+    for (let yi = 0; yi < 4; yi++) {
+      let c3 = c2
+      for (let zi = 0; zi < 4; zi++) {
+        const k = shapeKey(normalizeShape(c3))
+        if (!seen.has(k)) { seen.add(k); keys.push(k) }
+        c3 = c3.map(rotateZ)
+      }
+      c2 = c2.map(rotateY)
+    }
+    c1 = c1.map(rotateX)
+  }
+  return keys.sort()[0]
+}
+
+// 8-entry map: canonical key → colour, built once at module init.
+const PIECE_COLOR: Map<string, string> = new Map(
+  Object.entries({
     'I-bar':       [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0}],
     'O-square':    [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0}],
     'T-tetromino': [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:1,y:1,z:0}],
@@ -55,44 +76,20 @@ const SHAPE_TO_COLOR: Map<string, string> = (() => {
     'right-screw': [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:1,z:0},{x:1,y:1,z:1}],
     'branch':      [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1}],
     'left-screw':  [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:0,z:1},{x:1,y:1,z:1}],
-  }
-  const map = new Map<string, string>()
-  for (const [name, cubes] of Object.entries(bases)) {
-    const color = PIECE_COLORS[name]
-    // Enumerate all 24 orientations so any stored form of the piece maps to its color.
-    const seen = new Set<string>()
-    let c1 = cubes
-    for (let xi = 0; xi < 4; xi++) {
-      let c2 = c1
-      for (let yi = 0; yi < 4; yi++) {
-        let c3 = c2
-        for (let zi = 0; zi < 4; zi++) {
-          const norm = normalizeShape(c3)
-          const k = shapeKey(norm)
-          if (!seen.has(k)) { seen.add(k); map.set(k, color) }
-          c3 = c3.map(rotateZ)
-        }
-        c2 = c2.map(rotateY)
-      }
-      c1 = c1.map(rotateX)
-    }
-  }
-  return map
-})()
+  } as Record<string, Vec3[]>).map(([name, cubes]) => [canonicalKey(cubes), PIECE_COLORS[name]])
+)
 
 // Assigns each shape its canonical colour based on piece geometry, so the same
 // tetracube type always gets the same colour regardless of puzzle or day.
 export function assignShapeColors(puzzle: Puzzle): Puzzle {
-  const colorMap = new Map<string, string>()  // shape id → colour
+  const colorMap = new Map<string, string>()
 
   const shapes = puzzle.shapes.map(s => {
-    const norm  = normalizeShape(s.cubes)
-    const color = SHAPE_TO_COLOR.get(shapeKey(norm)) ?? '#ffffff'
+    const color = PIECE_COLOR.get(canonicalKey(s.cubes)) ?? '#ffffff'
     colorMap.set(s.id, color)
     return { ...s, color }
   })
 
-  // Keep solution colours in sync so the solved-puzzle view and hint highlight match.
   const solution = puzzle.solution.map(s => ({ ...s, color: colorMap.get(s.id) ?? s.color }))
 
   return { ...puzzle, shapes, solution }
