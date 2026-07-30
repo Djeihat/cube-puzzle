@@ -28,43 +28,71 @@ export const DIFFICULTY_META: Record<DifficultyKey, { label: string; color: stri
   hard:   { label: 'Hard',   color: '#E74C3C' },
 }
 
-// Fixed palette — same 7 colours used across all puzzles.
-const SHAPE_COLORS = ['#4A90D9', '#E67E22', '#2ECC71', '#9B59B6', '#E74C3C', '#1ABC9C', '#F39C12']
-
-// FNV-1a hash over sorted cube coordinates → stable colour index for any shape geometry.
-function hashShape(cubes: Vec3[]): number {
-  const sorted = [...cubes].sort(
-    (a, b) => a.x !== b.x ? a.x - b.x : a.y !== b.y ? a.y - b.y : a.z - b.z,
-  )
-  let h = 2166136261 | 0
-  for (const { x, y, z } of sorted) {
-    h = Math.imul(h ^ x, 16777619)
-    h = Math.imul(h ^ y, 16777619)
-    h = Math.imul(h ^ z, 16777619)
-  }
-  return Math.abs(h)
+// One fixed colour per tetracube type — consistent across every puzzle and day.
+const PIECE_COLORS: Record<string, string> = {
+  'I-bar':       '#4A90D9',  // blue
+  'O-square':    '#E67E22',  // orange
+  'T-tetromino': '#2ECC71',  // green
+  'L-tetromino': '#9B59B6',  // purple
+  'S-skew':      '#E74C3C',  // red
+  'right-screw': '#1ABC9C',  // teal
+  'branch':      '#F39C12',  // yellow
+  'left-screw':  '#E91E63',  // pink
 }
 
-// Assigns each shape a colour derived from its geometry so the same piece always
-// gets the same colour regardless of which puzzle it appears in or what day it is.
-// If two shapes in one puzzle hash to the same colour, the second gets the next
-// available slot (collision is rare given distinct piece geometries).
+// Build a lookup: every orientation shapeKey of every known tetracube → its colour.
+// Built once at module init so assignShapeColors is O(n) with no allocations.
+const vkey = (v: Vec3) => `${v.x},${v.y},${v.z}`
+const shapeKey = (cubes: Vec3[]) => cubes.map(vkey).sort().join('|')
+
+const SHAPE_TO_COLOR: Map<string, string> = (() => {
+  const bases: Record<string, Vec3[]> = {
+    'I-bar':       [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:3,y:0,z:0}],
+    'O-square':    [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:1,y:1,z:0}],
+    'T-tetromino': [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:1,y:1,z:0}],
+    'L-tetromino': [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:2,y:0,z:0},{x:2,y:1,z:0}],
+    'S-skew':      [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:1,z:0},{x:2,y:1,z:0}],
+    'right-screw': [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:1,z:0},{x:1,y:1,z:1}],
+    'branch':      [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:0,y:1,z:0},{x:0,y:0,z:1}],
+    'left-screw':  [{x:0,y:0,z:0},{x:1,y:0,z:0},{x:1,y:0,z:1},{x:1,y:1,z:1}],
+  }
+  const map = new Map<string, string>()
+  for (const [name, cubes] of Object.entries(bases)) {
+    const color = PIECE_COLORS[name]
+    // Enumerate all 24 orientations so any stored form of the piece maps to its color.
+    const seen = new Set<string>()
+    let c1 = cubes
+    for (let xi = 0; xi < 4; xi++) {
+      let c2 = c1
+      for (let yi = 0; yi < 4; yi++) {
+        let c3 = c2
+        for (let zi = 0; zi < 4; zi++) {
+          const norm = normalizeShape(c3)
+          const k = shapeKey(norm)
+          if (!seen.has(k)) { seen.add(k); map.set(k, color) }
+          c3 = c3.map(rotateZ)
+        }
+        c2 = c2.map(rotateY)
+      }
+      c1 = c1.map(rotateX)
+    }
+  }
+  return map
+})()
+
+// Assigns each shape its canonical colour based on piece geometry, so the same
+// tetracube type always gets the same colour regardless of puzzle or day.
 export function assignShapeColors(puzzle: Puzzle): Puzzle {
-  const used     = new Set<string>()
-  const colorMap = new Map<string, string>()  // shape id → assigned colour
+  const colorMap = new Map<string, string>()  // shape id → colour
 
   const shapes = puzzle.shapes.map(s => {
-    const norm = normalizeShape(s.cubes)
-    let idx    = hashShape(norm) % SHAPE_COLORS.length
-    while (used.has(SHAPE_COLORS[idx])) idx = (idx + 1) % SHAPE_COLORS.length
-    const color = SHAPE_COLORS[idx]
-    used.add(color)
+    const norm  = normalizeShape(s.cubes)
+    const color = SHAPE_TO_COLOR.get(shapeKey(norm)) ?? '#ffffff'
     colorMap.set(s.id, color)
     return { ...s, color }
   })
 
-  // solution placedShapes also carry colours; keep them in sync so the
-  // solved-puzzle view (which renders from puzzle.solution) matches.
+  // Keep solution colours in sync so the solved-puzzle view and hint highlight match.
   const solution = puzzle.solution.map(s => ({ ...s, color: colorMap.get(s.id) ?? s.color }))
 
   return { ...puzzle, shapes, solution }
