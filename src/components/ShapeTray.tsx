@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks'
 import { ShapePreview3D } from './ShapePreview3D'
 
 export function ShapeTray() {
-  const { puzzle, selectedShapeId, selectShape, won } = useGameStore()
+  const { puzzle, selectedShapeId, hintHighlight, selectShape, won } = useGameStore()
   const isMobile = useIsMobile()
   const unplaced  = puzzle.shapes.filter(s => !s.placed)
 
@@ -31,6 +31,7 @@ export function ShapeTray() {
         }}>
           {unplaced.map(shape => {
             const selected     = shape.id === selectedShapeId
+            const hinted       = shape.id === hintHighlight
             const rotatedCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
             return (
               <div
@@ -40,14 +41,15 @@ export function ShapeTray() {
                   flexShrink: 0,
                   width: 72,
                   height: 72,
-                  background: selected ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.05)',
-                  border: `2px solid ${selected ? shape.color : 'rgba(100,140,255,0.18)'}`,
+                  background: selected || hinted ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.05)',
+                  border: `2px solid ${selected || hinted ? shape.color : 'rgba(100,140,255,0.18)'}`,
                   borderRadius: 10,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   transition: 'all 0.15s',
+                  boxShadow: hinted ? `0 0 0 2px ${shape.color}55, 0 0 16px 4px ${shape.color}40` : undefined,
                 }}
               >
                 <ShapePreview3D cubes={rotatedCubes} color={shape.color} />
@@ -90,6 +92,7 @@ export function ShapeTray() {
 
         {unplaced.map(shape => {
           const selected     = shape.id === selectedShapeId
+          const hinted       = shape.id === hintHighlight
           const rotatedCubes = normalizeShape(applyRotation(shape.cubes, ...shape.rotation))
           return (
             <div
@@ -97,8 +100,8 @@ export function ShapeTray() {
               onClick={() => selectShape(selected ? null : shape.id)}
               style={{
                 flexShrink: 0,
-                background: selected ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.05)',
-                border: `2px solid ${selected ? shape.color : 'rgba(100,140,255,0.18)'}`,
+                background: selected || hinted ? 'rgba(100,140,255,0.15)' : 'rgba(255,255,255,0.05)',
+                border: `2px solid ${selected || hinted ? shape.color : 'rgba(100,140,255,0.18)'}`,
                 borderRadius: 10,
                 padding: 10,
                 cursor: 'pointer',
@@ -106,6 +109,7 @@ export function ShapeTray() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                boxShadow: hinted ? `0 0 0 2px ${shape.color}55, 0 0 16px 4px ${shape.color}40` : undefined,
               }}
             >
               <ShapePreview3D cubes={rotatedCubes} color={shape.color} />
