@@ -311,9 +311,10 @@ function tryGenerate(
   const shapes = solverPieces.map((p, i) => ({
     id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], rotation: [0,0,0], placed: false, cubes: p.canonical,
   }))
-  const sol = solution.map((p, i) => ({
-    id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes,
-  }))
+  const sol = solution.map(p => {
+    const i = solverPieces.findIndex(sp => sp.name === p.name)
+    return { id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes }
+  })
   // _fp stored in pool so append runs can skip already-generated puzzles
   const puzzle: any = { _fp: fp, container: spec.container, shapes, solution: sol }
   const isIrregular = spec.validCells.length < spec.container.x * spec.container.y * spec.container.z
