@@ -1,29 +1,34 @@
 /**
- * Puzzle pool generator
+ * Puzzle pool generator — v2 (daily sets with shape families)
  * Run:  npx vite-node scripts/generate-puzzle-pool.ts
  * Writes public/puzzle-pool.json
  *
- * For every (container, piece-set) combination, runs the backtracking solver.
- * Valid solutions are collected into a pool.  Each puzzle is fingerprinted by
- * its container cells + sorted piece names so no two pool entries are identical.
+ * Output format: { daily: DailySet[] }
+ * where DailySet = { family: string, easy: Puzzle, medium: Puzzle, hard: Puzzle }
  *
- * Difficulty tiers:
- *   easy   — 3 or 4 distinct free tetracubes, rectangular containers (12 or 16 cells)
- *   medium — 5 or 6 distinct free tetracubes, rectangular containers (20 or 24 cells)
- *            5-piece: 2×2×5 family (3 orientations)
- *            6-piece: 2×3×4 / 2×2×6 family (9 orientations)
- *   hard   — 7 distinct one-sided tetracubes (right-screw ≠ left-screw),
- *            irregular 28-cell containers
+ * Difficulty tiers (all tetracubes, 4 cells each):
+ *   easy   — 3 pieces (12 cells) or 4 pieces (16 cells), free tetracubes only
+ *   medium — 5 pieces (20 cells) or 6 pieces (24 cells), free tetracubes only
+ *   hard   — 7 pieces (28 cells) or 8 pieces (32 cells), one-sided tetracubes
+ *
+ * Shape families group containers with a consistent visual motif across difficulty
+ * levels — players see the same container style each day regardless of difficulty.
+ * Chunk 1: rectangle family only. Irregular families added in Chunks 2–5.
  */
 
-import { writeFileSync, readFileSync, existsSync } from 'fs'
+import { writeFileSync } from 'fs'
 import { resolve } from 'path'
-import { PUZZLE_LIBRARY } from '../src/puzzle'
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
 type Vec3 = { x: number; y: number; z: number }
-type DifficultyKey = 'easy' | 'medium' | 'hard'
+
+interface ContainerSpec {
+  container: Vec3
+  validCells: Vec3[]
+  total: number
+  label: string
+}
 
 // ── solver (same core logic as solve-puzzle.ts) ───────────────────────────────
 
@@ -129,16 +134,12 @@ const TETRACUBES: Record<string, Vec3[]> = {
   'S-skew':       [c(0,0,0),c(1,0,0),c(1,1,0),c(2,1,0)],
   'right-screw':  [c(0,0,0),c(1,0,0),c(1,1,0),c(1,1,1)],
   'branch':       [c(0,0,0),c(1,0,0),c(0,1,0),c(0,0,1)],
-  // Hard-only: left-screw is the chiral mirror of right-screw.
-  // Under rotations-only, these are genuinely distinct pieces.
-  // Flat pieces (I,O,T,L,S) are the same under rotations-only since
-  // a flat piece can be "flipped" by a valid 3D rotation.
   'left-screw':   [c(0,0,0),c(1,0,0),c(1,0,1),c(1,1,1)],
 }
 
-// Easy / Medium: free polycubes — reflections allowed (7 distinct)
+// Free polycubes — reflections count as same piece (7 distinct)
 const FREE_TETRACUBE_NAMES     = Object.keys(TETRACUBES).filter(n => n !== 'left-screw')
-// Hard: one-sided — rotations only, right-screw ≠ left-screw (8 distinct)
+// One-sided — rotations only, right-screw ≠ left-screw (8 distinct)
 const ONESIDED_TETRACUBE_NAMES = Object.keys(TETRACUBES)
 
 // ── combinatorics ─────────────────────────────────────────────────────────────
@@ -148,150 +149,75 @@ function combinations<T>(arr: T[], k: number): T[][] {
   if (arr.length < k) return []
   const [head, ...tail] = arr
   return [
-    ...combinations(tail, k - 1).map(c => [head, ...c]),
+    ...combinations(tail, k - 1).map(combo => [head, ...combo]),
     ...combinations(tail, k),
   ]
 }
 
-// ── container library ─────────────────────────────────────────────────────────
+// ── container helpers ─────────────────────────────────────────────────────────
 
-interface ContainerSpec { container: Vec3; validCells: Vec3[]; total: number; label: string }
-
-function allCells(container: Vec3): Vec3[] {
+function allCells(d: Vec3): Vec3[] {
   const cells: Vec3[] = []
-  for (let x = 0; x < container.x; x++)
-    for (let y = 0; y < container.y; y++)
-      for (let z = 0; z < container.z; z++)
+  for (let x = 0; x < d.x; x++)
+    for (let y = 0; y < d.y; y++)
+      for (let z = 0; z < d.z; z++)
         cells.push({ x, y, z })
   return cells
 }
 
-// Easy: rectangular containers — include all axis-permutations of each unique
-// shape so players see visually different containers (portrait vs landscape).
-// 12-cell (3×2×2) and 16-cell (4×2×2) with all three axis orientations each.
-const EASY_CONTAINERS: ContainerSpec[] = (() => {
-  const library = PUZZLE_LIBRARY.easy.map(f => f())
-  const seen = new Set<string>()
-  const specs: ContainerSpec[] = []
-  const dims12 = [{x:3,y:2,z:2},{x:2,y:3,z:2},{x:2,y:2,z:3}]
-  const dims16 = [{x:4,y:2,z:2},{x:2,y:4,z:2},{x:2,y:2,z:4}]
-  for (const d of [...dims12, ...dims16]) {
-    const k = `${d.x},${d.y},${d.z}`
-    if (seen.has(k)) continue
-    seen.add(k)
-    const cells = allCells(d)
-    specs.push({ container: d, validCells: cells, total: cells.length, label: k })
-  }
-  // Also include any unique-sized easy containers from the library
-  for (let i = 0; i < library.length; i++) {
-    const p = library[i]
-    const cells = allCells(p.container)
-    const k = `${p.container.x},${p.container.y},${p.container.z}`
-    if (!seen.has(k) && (cells.length === 12 || cells.length === 16)) {
-      seen.add(k); specs.push({ container: p.container, validCells: cells, total: cells.length, label: `easy-${i+1}` })
-    }
-  }
-  return specs
-})()
-
-// Medium 20-cell: all axis-permutations of 2×2×5. 5 tetracubes × 4 = 20 cells.
-// (The only meaningfully 3D rectangular container at this cell count.)
-const MEDIUM_20_CONTAINERS: ContainerSpec[] = [
-  {x:2,y:2,z:5}, {x:2,y:5,z:2}, {x:5,y:2,z:2},
-].map(d => {
+function makeRectSpec(d: Vec3): ContainerSpec {
   const cells = allCells(d)
   return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
-})
+}
 
-// Medium 24-cell: all axis-permutations of 2×3×4 (6) and 2×2×6 (3). 6 tetracubes × 4 = 24 cells.
-const MEDIUM_24_CONTAINERS: ContainerSpec[] = [
+// ── rectangle family containers ───────────────────────────────────────────────
+//
+// All axis-permutations of each unique box shape so players see visually varied
+// containers (portrait vs landscape vs deep) across different puzzle days.
+
+const RECT_12: ContainerSpec[] = [  // 3-piece easy
+  {x:3,y:2,z:2}, {x:2,y:3,z:2}, {x:2,y:2,z:3},
+].map(makeRectSpec)
+
+const RECT_16: ContainerSpec[] = [  // 4-piece easy
+  {x:4,y:2,z:2}, {x:2,y:4,z:2}, {x:2,y:2,z:4},
+].map(makeRectSpec)
+
+const RECT_20: ContainerSpec[] = [  // 5-piece medium
+  {x:5,y:2,z:2}, {x:2,y:5,z:2}, {x:2,y:2,z:5},
+].map(makeRectSpec)
+
+const RECT_24: ContainerSpec[] = [  // 6-piece medium
   {x:2,y:3,z:4}, {x:2,y:4,z:3}, {x:3,y:2,z:4},
   {x:3,y:4,z:2}, {x:4,y:2,z:3}, {x:4,y:3,z:2},
-  {x:2,y:2,z:6}, {x:2,y:6,z:2}, {x:6,y:2,z:2},
-].map(d => {
-  const cells = allCells(d)
-  return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
-})
+  {x:6,y:2,z:2}, {x:2,y:6,z:2}, {x:2,y:2,z:6},
+].map(makeRectSpec)
 
-// Hard containers — irregular 28-cell, one-sided tetracubes (7 pieces × 4 = 28).
-function excludeCells(base: Vec3, exclude: Vec3[]): ContainerSpec {
-  const excl = new Set(exclude.map(key))
-  const cells = allCells(base).filter(v => !excl.has(key(v)))
-  return { container: base, validCells: cells, total: cells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
-}
-function fromCells(base: Vec3, validCells: Vec3[]): ContainerSpec {
-  return { container: base, validCells, total: validCells.length, label: `${base.x}x${base.y}x${base.z}-irr` }
-}
+const RECT_28: ContainerSpec[] = [  // 7-piece hard
+  {x:7,y:2,z:2}, {x:2,y:7,z:2}, {x:2,y:2,z:7},
+].map(makeRectSpec)
 
-// Hard 28-cell irregular containers (7 one-sided tetracubes × 4 = 28).
-// Includes original old-medium shapes (M3/M9/M10) plus generated L/T/notch/staircase.
-const HARD_28_CONTAINERS: ContainerSpec[] = [
-  // M3: tall container — 2×4×4 bbox, top two layers narrower (3 cols instead of 4)
-  fromCells(c(2,4,4), [
-    c(0,0,0),c(1,0,0),c(0,0,1),c(1,0,1),c(0,0,2),c(1,0,2),c(0,0,3),c(1,0,3),
-    c(0,1,0),c(1,1,0),c(0,1,1),c(1,1,1),c(0,1,2),c(1,1,2),c(0,1,3),c(1,1,3),
-    c(0,2,0),c(1,2,0),c(0,2,1),c(1,2,1),c(0,2,2),c(1,2,2),
-    c(0,3,0),c(1,3,0),c(0,3,1),c(1,3,1),c(0,3,2),c(1,3,2),
-  ]),
-  // M9: stepped slab — 4×2×4 bbox, full base + 3-wide top (x=3 column removed)
-  fromCells(c(4,2,4), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
-    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
-    c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
-    c(0,0,3),c(1,0,3),c(2,0,3),c(3,0,3),
-    c(0,1,0),c(1,1,0),c(2,1,0),
-    c(0,1,1),c(1,1,1),c(2,1,1),
-    c(0,1,2),c(1,1,2),c(2,1,2),
-    c(0,1,3),c(1,1,3),c(2,1,3),
-  ]),
-  // M10: staircase prism — 4×3×4 bbox, each row one step narrower
-  fromCells(c(4,3,4), [
-    c(0,0,0),c(1,0,0),c(2,0,0),c(3,0,0),
-    c(0,0,1),c(1,0,1),c(2,0,1),c(3,0,1),
-    c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
-    c(0,0,3),c(1,0,3),c(2,0,3),c(3,0,3),
-    c(0,1,0),c(1,1,0),
-    c(0,1,1),c(1,1,1),
-    c(0,1,2),c(1,1,2),
-    c(0,1,3),c(1,1,3),
-    c(0,2,0),c(0,2,1),c(0,2,2),c(0,2,3),
-  ]),
-  // L-shape A: 4×4×2 minus top-right 1×2×2 strip = 28 cells
-  excludeCells(c(4,4,2), [c(3,2,0),c(3,3,0),c(3,2,1),c(3,3,1)]),
-  // L-shape B: 4×4×2 minus bottom-left 1×2×2 strip = 28 cells
-  excludeCells(c(4,4,2), [c(0,0,0),c(0,1,0),c(0,0,1),c(0,1,1)]),
-  // T-shape: 4×4×2 minus top-left and top-right 1×1×2 corners = 28 cells
-  excludeCells(c(4,4,2), [c(0,3,0),c(0,3,1),c(3,3,0),c(3,3,1)]),
-  // Notch: 4×4×2 minus 1×2×2 middle-top notch = 28 cells
-  excludeCells(c(4,4,2), [c(1,3,0),c(2,3,0),c(1,3,1),c(2,3,1)]),
-  // 3D staircase A: 4×3×3 minus top-far 4×1×2 band = 28 cells
-  excludeCells(c(4,3,3), [
-    c(0,2,1),c(1,2,1),c(2,2,1),c(3,2,1),
-    c(0,2,2),c(1,2,2),c(2,2,2),c(3,2,2),
-  ]),
-  // 3D staircase B: 4×3×3 minus front-deep 4×2×1 band = 28 cells
-  excludeCells(c(4,3,3), [
-    c(0,0,2),c(1,0,2),c(2,0,2),c(3,0,2),
-    c(0,1,2),c(1,1,2),c(2,1,2),c(3,1,2),
-  ]),
-]
+const RECT_32: ContainerSpec[] = [  // 8-piece hard
+  {x:4,y:4,z:2}, {x:4,y:2,z:4}, {x:2,y:4,z:4},
+  {x:8,y:2,z:2}, {x:2,y:8,z:2}, {x:2,y:2,z:8},
+].map(makeRectSpec)
 
 // ── pool generation ───────────────────────────────────────────────────────────
 
-const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12']
+const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#3498DB']
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 function fingerprint(containerCells: Vec3[], pieceNames: string[]): string {
   return containerCells.map(key).sort().join('|') + '::' + [...pieceNames].sort().join('+')
 }
 
-function buildPiece(name: string, validSet: Set<string>) {
+function buildPiece(name: string, validSet: Set<string>): SolverPiece {
   const canonical = TETRACUBES[name]
   const seen = new Set<string>()
   const placements = allOrientations(canonical).flatMap(o => placementsOf(o, validSet)).filter(p => {
     const k = shapeKey(p); if (seen.has(k)) return false; seen.add(k); return true
   })
-  return { name, canonical, placements } as SolverPiece
+  return { name, canonical, placements }
 }
 
 function tryGenerate(
@@ -315,99 +241,103 @@ function tryGenerate(
     const i = solverPieces.findIndex(sp => sp.name === p.name)
     return { id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes }
   })
-  // _fp stored in pool so append runs can skip already-generated puzzles
   const puzzle: any = { _fp: fp, container: spec.container, shapes, solution: sol }
   const isIrregular = spec.validCells.length < spec.container.x * spec.container.y * spec.container.z
   if (isIrregular) puzzle.validCells = spec.validCells
   return puzzle
 }
 
-function generatePool(
-  difficulty: DifficultyKey,
+// Collect all solvable (container, piece-combo) pairs from the given specs.
+function collectPuzzles(
   containers: ContainerSpec[],
   pieceCount: number,
   pieceNames: string[],
-  existing: object[],
-  maxPerDiff = 60,
+  idPfx: string,
+  seen: Set<string>,
+  max = Infinity,
 ): object[] {
-  // Pre-load fingerprints from existing puzzles so we never duplicate
-  const seen = new Set<string>(existing.map((p: any) => p._fp).filter(Boolean))
-  const pool: object[] = [...existing]
-  const idPfx = `d${difficulty[0]}`
-  const pieceCombos = combinations(pieceNames, pieceCount)
+  const puzzles: object[] = []
+  const combos = combinations(pieceNames, pieceCount)
 
+  outer:
   for (const spec of containers) {
-    for (const names of pieceCombos) {
-      if (pool.length >= maxPerDiff) break
+    for (const names of combos) {
+      if (puzzles.length >= max) break outer
       if (names.length * 4 !== spec.total) continue
-      const puzzle = tryGenerate(spec, names, idPfx, seen)
-      if (puzzle) { pool.push(puzzle); process.stdout.write('.') }
+      const p = tryGenerate(spec, names, idPfx, seen)
+      if (p) { puzzles.push(p); process.stdout.write('.') }
     }
-    if (pool.length >= maxPerDiff) break
   }
-  return pool
+  return puzzles
+}
+
+// Interleave two arrays so both cell counts appear throughout the daily order.
+function interleave<T>(a: T[], b: T[]): T[] {
+  const result: T[] = []
+  const max = Math.max(a.length, b.length)
+  for (let i = 0; i < max; i++) {
+    if (i < a.length) result.push(a[i])
+    if (i < b.length) result.push(b[i])
+  }
+  return result
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
 
-const MIN_POOL_SIZE = 30  // warn if any difficulty drops below this
-
 async function main() {
   const outPath = resolve(process.cwd(), 'public/puzzle-pool.json')
+  const seen    = new Set<string>()
+  const t0      = Date.now()
 
-  // Load existing pool (append mode — never duplicate)
-  let existing: Record<string, object[]> = { easy: [], medium: [], hard: [] }
-  if (existsSync(outPath)) {
-    try { existing = JSON.parse(readFileSync(outPath, 'utf8')) } catch {}
-  }
-  const prevCounts = { easy: existing.easy?.length ?? 0, medium: existing.medium?.length ?? 0, hard: existing.hard?.length ?? 0 }
+  console.log('Generating rectangle family (all 6 cell counts)...\n')
 
-  console.log(`Expanding puzzle pool (existing: ${prevCounts.easy}e / ${prevCounts.medium}m / ${prevCounts.hard}h)...\n`)
-  const t0 = Date.now()
+  process.stdout.write('  easy   3-piece  12-cell: ')
+  const easy3  = collectPuzzles(RECT_12, 3, FREE_TETRACUBE_NAMES,     'e3', seen)
+  console.log(` ${easy3.length}`)
 
-  // Easy: free polycubes, 3-piece (12-cell) and 4-piece (16-cell) containers
-  process.stdout.write('[EASY] ')
-  const easySeen = new Set<string>((existing.easy ?? []).map((p: any) => p._fp).filter(Boolean))
-  const easyPool: object[] = [...(existing.easy ?? [])]
-  const easyIdPfx = 'de'
-  for (const spec of EASY_CONTAINERS) {
-    const pieceCount = spec.total === 12 ? 3 : spec.total === 16 ? 4 : null
-    if (!pieceCount) continue
-    for (const names of combinations(FREE_TETRACUBE_NAMES, pieceCount)) {
-      if (easyPool.length >= 60) break
-      if (names.length * 4 !== spec.total) continue
-      const p = tryGenerate(spec, names, easyIdPfx, easySeen)
-      if (p) { easyPool.push(p); process.stdout.write('.') }
-    }
-    if (easyPool.length >= 60) break
-  }
-  console.log(` ${easyPool.length} puzzles (+${easyPool.length - prevCounts.easy} new)`)
+  process.stdout.write('  easy   4-piece  16-cell: ')
+  const easy4  = collectPuzzles(RECT_16, 4, FREE_TETRACUBE_NAMES,     'e4', seen)
+  console.log(` ${easy4.length}`)
 
-  // Medium: two passes — 5-piece 20-cell first, then 6-piece 24-cell fills to 60.
-  // Start fresh — difficulty spec changed; regenerate completely.
-  process.stdout.write('[MEDIUM] ')
-  const medium5 = generatePool('medium', MEDIUM_20_CONTAINERS, 5, FREE_TETRACUBE_NAMES, [], 60)
-  const mediumPool = generatePool('medium', MEDIUM_24_CONTAINERS, 6, FREE_TETRACUBE_NAMES, medium5, 60)
-  console.log(` ${mediumPool.length} puzzles (+${mediumPool.length - prevCounts.medium} new)`)
+  process.stdout.write('  medium 5-piece  20-cell: ')
+  const med5   = collectPuzzles(RECT_20, 5, FREE_TETRACUBE_NAMES,     'm5', seen)
+  console.log(` ${med5.length}`)
 
-  // Hard: pure 7-piece, 28-cell irregular containers.
-  // Start fresh — dropping 6-piece hard tier; regenerate completely.
-  process.stdout.write('[HARD] ')
-  const hardPool = generatePool('hard', HARD_28_CONTAINERS, 7, ONESIDED_TETRACUBE_NAMES, [], 60)
-  console.log(` ${hardPool.length} puzzles (+${hardPool.length - prevCounts.hard} new)`)
+  process.stdout.write('  medium 6-piece  24-cell: ')
+  const med6   = collectPuzzles(RECT_24, 6, FREE_TETRACUBE_NAMES,     'm6', seen)
+  console.log(` ${med6.length}`)
+
+  process.stdout.write('  hard   7-piece  28-cell: ')
+  const hard7  = collectPuzzles(RECT_28, 7, ONESIDED_TETRACUBE_NAMES, 'h7', seen)
+  console.log(` ${hard7.length}`)
+
+  process.stdout.write('  hard   8-piece  32-cell: ')
+  const hard8  = collectPuzzles(RECT_32, 8, ONESIDED_TETRACUBE_NAMES, 'h8', seen)
+  console.log(` ${hard8.length}`)
+
+  // Interleave so the daily pool alternates between piece counts within each tier
+  const easyAll = interleave(easy3, easy4)
+  const medAll  = interleave(med5, med6)
+  const hardAll = interleave(hard7, hard8)
+
+  // Daily sets are limited by the smallest tier's count
+  const count = Math.min(easyAll.length, medAll.length, hardAll.length)
+  const daily = Array.from({ length: count }, (_, i) => ({
+    family: 'rectangle',
+    easy:   easyAll[i],
+    medium: medAll[i],
+    hard:   hardAll[i],
+  }))
 
   const ms = Date.now() - t0
-  console.log(`\nDone in ${(ms/1000).toFixed(1)}s`)
+  console.log(`\n${count} daily sets in ${(ms/1000).toFixed(1)}s`)
+  console.log(`  (easy: ${easyAll.length}, medium: ${medAll.length}, hard: ${hardAll.length})`)
 
-  writeFileSync(outPath, JSON.stringify({ easy: easyPool, medium: mediumPool, hard: hardPool }, null, 2))
+  writeFileSync(outPath, JSON.stringify({ daily }, null, 2))
   console.log(`Written → ${outPath}`)
 
-  // Warn if any difficulty is running low
-  const pools = { easy: easyPool, medium: mediumPool, hard: hardPool }
-  for (const [d, pool] of Object.entries(pools)) {
-    if (pool.length < MIN_POOL_SIZE) {
-      console.warn(`\n⚠  ${d} pool has only ${pool.length} puzzles (target: ${MIN_POOL_SIZE}). Add more containers to src/puzzle-${d}-*.ts to expand it.`)
-    }
+  if (count < 10) {
+    console.warn(`\n⚠  Only ${count} daily sets — add more container families to expand the pool.`)
   }
 }
 

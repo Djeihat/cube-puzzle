@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { PlacedShape, Vec3, Puzzle } from './types'
+import type { PlacedShape, Vec3, Puzzle, DailySet } from './types'
 import { applyRotation, normalizeShape, addOffset, cubesInBounds, cubesOverlap } from './puzzle'
 import { getEasyPuzzle, PUZZLE_LIBRARY, assignShapeColors } from './puzzle'
 import type { DifficultyKey } from './puzzle'
@@ -50,7 +50,7 @@ interface GameState {
   solvedPuzzles:      Record<string, boolean>  // key: `daily-${difficulty}-${YYYY-MM-DD}`
 
   // ── Puzzle pool (fetched once at startup, rarely changes) ────────────────
-  puzzlePool:  Record<DifficultyKey, Puzzle[]> | null
+  puzzlePool:  DailySet[] | null
 
   // ── Stats + streaks ───────────────────────────────────────────────────────
   stats:         GameStats
@@ -139,8 +139,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       const res  = await fetch(`${base}puzzle-pool.json`)
       if (!res.ok) return
       const data = await res.json()
-      if (!data.easy?.length || !data.medium?.length || !data.hard?.length) return
-      set({ puzzlePool: { easy: data.easy, medium: data.medium, hard: data.hard } })
+      if (!data.daily?.length) return
+      set({ puzzlePool: data.daily })
     } catch {
       // Fail silently — static library fallback handles it
     }
@@ -153,13 +153,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     let puzzle: Puzzle
     let puzzleIndex: number
 
-    if (puzzlePool?.[d]?.length) {
+    if (puzzlePool?.length) {
       // Use raw day index (no pre-modulo) so all pool slots are reachable.
       // getDailyIndex mods by the tiny static-library count, which would cap
-      // pool selection to the first 2–10 puzzles out of 42–60 available.
-      const pool = puzzlePool[d] as Puzzle[]
-      puzzleIndex = getRawDayIndex(today) % pool.length
-      puzzle = assignShapeColors(pool[puzzleIndex])
+      // pool selection to the first 2–10 puzzles out of the available set.
+      puzzleIndex = getRawDayIndex(today) % puzzlePool.length
+      puzzle = assignShapeColors(puzzlePool[puzzleIndex][d])
     } else {
       // Fallback: static library
       puzzleIndex = getDailyIndex(d, today)
@@ -297,9 +296,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   reset: () => {
     const { currentDifficulty, currentPuzzleIndex, puzzlePool } = get()
     if (!currentDifficulty) return
-    const pool = puzzlePool?.[currentDifficulty] as Puzzle[] | undefined
-    const basePuzzle = pool?.length && currentPuzzleIndex >= 0 && currentPuzzleIndex < pool.length
-      ? assignShapeColors(pool[currentPuzzleIndex])
+    const dailySet = puzzlePool?.[currentPuzzleIndex]
+    const basePuzzle = dailySet
+      ? assignShapeColors(dailySet[currentDifficulty])
       : assignShapeColors(getPuzzle(currentDifficulty, currentPuzzleIndex))
     set({ ...freshGame(basePuzzle), paused: false, elapsedMs: 0, sessionStart: Date.now() })
   },

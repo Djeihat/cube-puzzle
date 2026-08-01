@@ -23,3 +23,10 @@ export interface Puzzle {
   shapes: PuzzleShape[]
   solution: PlacedShape[] // one valid solution (for hints)
 }
+
+export interface DailySet {
+  family: string
+  easy:   Puzzle
+  medium: Puzzle
+  hard:   Puzzle
+}
