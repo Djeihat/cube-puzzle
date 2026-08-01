@@ -13,7 +13,8 @@
  *
  * Shape families group containers with a consistent visual motif across difficulty
  * levels — players see the same container style each day regardless of difficulty.
- * Chunk 1: rectangle family only. Irregular families added in Chunks 2–5.
+ * To add a new family: define container specs at all 6 cell counts, then add one
+ * generateDailySets() call in main().
  */
 
 import { writeFileSync } from 'fs'
@@ -28,6 +29,15 @@ interface ContainerSpec {
   validCells: Vec3[]
   total: number
   label: string
+}
+
+interface FamilyContainers {
+  c12: ContainerSpec[]
+  c16: ContainerSpec[]
+  c20: ContainerSpec[]
+  c24: ContainerSpec[]
+  c28: ContainerSpec[]
+  c32: ContainerSpec[]
 }
 
 // ── solver (same core logic as solve-puzzle.ts) ───────────────────────────────
@@ -170,42 +180,103 @@ function makeRectSpec(d: Vec3): ContainerSpec {
   return { container: d, validCells: cells, total: cells.length, label: `${d.x}x${d.y}x${d.z}` }
 }
 
-// ── rectangle family containers ───────────────────────────────────────────────
+// ── Rectangle family ──────────────────────────────────────────────────────────
 //
-// All axis-permutations of each unique box shape so players see visually varied
-// containers (portrait vs landscape vs deep) across different puzzle days.
+// Pure rectangular prisms — all axis-permutations of each unique box shape.
 
-const RECT_12: ContainerSpec[] = [  // 3-piece easy
+const RECT_12: ContainerSpec[] = [  // 3-piece easy (12 cells)
   {x:3,y:2,z:2}, {x:2,y:3,z:2}, {x:2,y:2,z:3},
 ].map(makeRectSpec)
 
-const RECT_16: ContainerSpec[] = [  // 4-piece easy
+const RECT_16: ContainerSpec[] = [  // 4-piece easy (16 cells)
   {x:4,y:2,z:2}, {x:2,y:4,z:2}, {x:2,y:2,z:4},
 ].map(makeRectSpec)
 
-const RECT_20: ContainerSpec[] = [  // 5-piece medium
+const RECT_20: ContainerSpec[] = [  // 5-piece medium (20 cells)
   {x:5,y:2,z:2}, {x:2,y:5,z:2}, {x:2,y:2,z:5},
 ].map(makeRectSpec)
 
-const RECT_24: ContainerSpec[] = [  // 6-piece medium
+const RECT_24: ContainerSpec[] = [  // 6-piece medium (24 cells)
   {x:2,y:3,z:4}, {x:2,y:4,z:3}, {x:3,y:2,z:4},
   {x:3,y:4,z:2}, {x:4,y:2,z:3}, {x:4,y:3,z:2},
   {x:6,y:2,z:2}, {x:2,y:6,z:2}, {x:2,y:2,z:6},
 ].map(makeRectSpec)
 
-const RECT_28: ContainerSpec[] = [  // 7-piece hard
+const RECT_28: ContainerSpec[] = [  // 7-piece hard (28 cells)
   {x:7,y:2,z:2}, {x:2,y:7,z:2}, {x:2,y:2,z:7},
 ].map(makeRectSpec)
 
-const RECT_32: ContainerSpec[] = [  // 8-piece hard
+const RECT_32: ContainerSpec[] = [  // 8-piece hard (32 cells)
   {x:4,y:4,z:2}, {x:4,y:2,z:4}, {x:2,y:4,z:4},
   {x:8,y:2,z:2}, {x:2,y:8,z:2}, {x:2,y:2,z:8},
 ].map(makeRectSpec)
+
+// ── L-prism family ────────────────────────────────────────────────────────────
+//
+// Cross-section: 4-cell L shape in a 3×2 bounding box, extruded d units.
+// The L arm (3 cells wide) sits on one row; the foot (1 cell) on the adjacent row.
+// Four orientations per cell count give containers with varied aspect ratios.
+//
+//   Orientation A/B: L in x-y plane, extruded in z → 3×2×d
+//   Orientation C:   L in y-z plane, extruded in x → d×2×3  (landscape)
+//   Orientation D:   L in x-z plane, extruded in y → 3×d×2  (vertical)
+//
+// A and B are mirrors (foot on opposite ends of the arm) — same cell count,
+// different asymmetry — they look like L and J to the player.
+
+function lPrismSpecs(d: number): ContainerSpec[] {
+  const extrude = (n: number, fn: (i: number) => Vec3[]) =>
+    Array.from({ length: n }, (_, i) => fn(i)).flat()
+
+  return [
+    // A: arm → +x, foot at left (+y at x=0), extrude in z
+    {
+      container: { x: 3, y: 2, z: d },
+      validCells: extrude(d, z => [c(0,0,z), c(1,0,z), c(2,0,z), c(0,1,z)]),
+      total: 4 * d, label: `lp-A-d${d}`,
+    },
+    // B: arm → +x, foot at right (+y at x=2), extrude in z  — mirror of A
+    {
+      container: { x: 3, y: 2, z: d },
+      validCells: extrude(d, z => [c(0,0,z), c(1,0,z), c(2,0,z), c(2,1,z)]),
+      total: 4 * d, label: `lp-B-d${d}`,
+    },
+    // C: arm → +z, foot at near end (+y at z=0), extrude in x
+    {
+      container: { x: d, y: 2, z: 3 },
+      validCells: extrude(d, x => [c(x,0,0), c(x,0,1), c(x,0,2), c(x,1,0)]),
+      total: 4 * d, label: `lp-C-d${d}`,
+    },
+    // D: arm → +x, foot at front (+z at x=0), extrude in y
+    {
+      container: { x: 3, y: d, z: 2 },
+      validCells: extrude(d, y => [c(0,y,0), c(1,y,0), c(2,y,0), c(0,y,1)]),
+      total: 4 * d, label: `lp-D-d${d}`,
+    },
+  ]
+}
+
+const LPRISM_12 = lPrismSpecs(3)  // 4×3=12 cells — easy 3-piece
+const LPRISM_16 = lPrismSpecs(4)  // 4×4=16 cells — easy 4-piece
+const LPRISM_20 = lPrismSpecs(5)  // 4×5=20 cells — medium 5-piece
+const LPRISM_24 = lPrismSpecs(6)  // 4×6=24 cells — medium 6-piece
+const LPRISM_28 = lPrismSpecs(7)  // 4×7=28 cells — hard 7-piece
+const LPRISM_32 = lPrismSpecs(8)  // 4×8=32 cells — hard 8-piece
 
 // ── pool generation ───────────────────────────────────────────────────────────
 
 const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#3498DB']
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
+
+// Piece ID prefix encodes puzzle tier — readable in pool JSON and debug logs.
+function idPfx(cellCount: number): string {
+  if (cellCount === 12) return 'e3'
+  if (cellCount === 16) return 'e4'
+  if (cellCount === 20) return 'm5'
+  if (cellCount === 24) return 'm6'
+  if (cellCount === 28) return 'h7'
+  return 'h8'
+}
 
 function fingerprint(containerCells: Vec3[], pieceNames: string[]): string {
   return containerCells.map(key).sort().join('|') + '::' + [...pieceNames].sort().join('+')
@@ -223,7 +294,7 @@ function buildPiece(name: string, validSet: Set<string>): SolverPiece {
 function tryGenerate(
   spec: ContainerSpec,
   pieceNames: string[],
-  idPfx: string,
+  pfx: string,
   seen: Set<string>,
 ): object | null {
   const fp = fingerprint(spec.validCells, pieceNames)
@@ -235,11 +306,11 @@ function tryGenerate(
   seen.add(fp)
 
   const shapes = solverPieces.map((p, i) => ({
-    id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], rotation: [0,0,0], placed: false, cubes: p.canonical,
+    id: `${pfx}${LETTERS[i]}`, color: COLORS[i], rotation: [0,0,0], placed: false, cubes: p.canonical,
   }))
   const sol = solution.map(p => {
     const i = solverPieces.findIndex(sp => sp.name === p.name)
-    return { id: `${idPfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes }
+    return { id: `${pfx}${LETTERS[i]}`, color: COLORS[i], cubes: p.cubes }
   })
   const puzzle: any = { _fp: fp, container: spec.container, shapes, solution: sol }
   const isIrregular = spec.validCells.length < spec.container.x * spec.container.y * spec.container.z
@@ -247,14 +318,12 @@ function tryGenerate(
   return puzzle
 }
 
-// Collect all solvable (container, piece-combo) pairs from the given specs.
 function collectPuzzles(
   containers: ContainerSpec[],
   pieceCount: number,
   pieceNames: string[],
-  idPfx: string,
+  pfx: string,
   seen: Set<string>,
-  max = Infinity,
 ): object[] {
   const puzzles: object[] = []
   const combos = combinations(pieceNames, pieceCount)
@@ -262,16 +331,15 @@ function collectPuzzles(
   outer:
   for (const spec of containers) {
     for (const names of combos) {
-      if (puzzles.length >= max) break outer
       if (names.length * 4 !== spec.total) continue
-      const p = tryGenerate(spec, names, idPfx, seen)
+      const p = tryGenerate(spec, names, pfx, seen)
       if (p) { puzzles.push(p); process.stdout.write('.') }
+      if (puzzles.length >= 999) break outer  // safety cap — no family should need this many
     }
   }
   return puzzles
 }
 
-// Interleave two arrays so both cell counts appear throughout the daily order.
 function interleave<T>(a: T[], b: T[]): T[] {
   const result: T[] = []
   const max = Math.max(a.length, b.length)
@@ -282,62 +350,65 @@ function interleave<T>(a: T[], b: T[]): T[] {
   return result
 }
 
+// ── per-family generation ─────────────────────────────────────────────────────
+
+function generateDailySets(
+  familyName: string,
+  fc: FamilyContainers,
+  seen: Set<string>,
+): object[] {
+  const row = (label: string, specs: ContainerSpec[], n: number, names: string[]) => {
+    process.stdout.write(`  ${label}: `)
+    const puzzles = collectPuzzles(specs, n, names, idPfx(n * 4), seen)
+    console.log(` ${puzzles.length}`)
+    return puzzles
+  }
+
+  const easy3 = row('easy   3pc 12-cell', fc.c12, 3, FREE_TETRACUBE_NAMES)
+  const easy4 = row('easy   4pc 16-cell', fc.c16, 4, FREE_TETRACUBE_NAMES)
+  const med5  = row('medium 5pc 20-cell', fc.c20, 5, FREE_TETRACUBE_NAMES)
+  const med6  = row('medium 6pc 24-cell', fc.c24, 6, FREE_TETRACUBE_NAMES)
+  const hard7 = row('hard   7pc 28-cell', fc.c28, 7, ONESIDED_TETRACUBE_NAMES)
+  const hard8 = row('hard   8pc 32-cell', fc.c32, 8, ONESIDED_TETRACUBE_NAMES)
+
+  const easyAll = interleave(easy3, easy4)
+  const medAll  = interleave(med5, med6)
+  const hardAll = interleave(hard7, hard8)
+  const count   = Math.min(easyAll.length, medAll.length, hardAll.length)
+
+  console.log(`  → ${count} daily sets  (easy ${easyAll.length} / med ${medAll.length} / hard ${hardAll.length})`)
+  return Array.from({ length: count }, (_, i) => ({
+    family: familyName, easy: easyAll[i], medium: medAll[i], hard: hardAll[i],
+  }))
+}
+
 // ── main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
   const outPath = resolve(process.cwd(), 'public/puzzle-pool.json')
-  const seen    = new Set<string>()
-  const t0      = Date.now()
+  const daily: object[] = []
+  const seen  = new Set<string>()
+  const t0    = Date.now()
 
-  console.log('Generating rectangle family (all 6 cell counts)...\n')
+  console.log('Rectangle family:')
+  daily.push(...generateDailySets('rectangle', {
+    c12: RECT_12, c16: RECT_16, c20: RECT_20,
+    c24: RECT_24, c28: RECT_28, c32: RECT_32,
+  }, seen))
 
-  process.stdout.write('  easy   3-piece  12-cell: ')
-  const easy3  = collectPuzzles(RECT_12, 3, FREE_TETRACUBE_NAMES,     'e3', seen)
-  console.log(` ${easy3.length}`)
-
-  process.stdout.write('  easy   4-piece  16-cell: ')
-  const easy4  = collectPuzzles(RECT_16, 4, FREE_TETRACUBE_NAMES,     'e4', seen)
-  console.log(` ${easy4.length}`)
-
-  process.stdout.write('  medium 5-piece  20-cell: ')
-  const med5   = collectPuzzles(RECT_20, 5, FREE_TETRACUBE_NAMES,     'm5', seen)
-  console.log(` ${med5.length}`)
-
-  process.stdout.write('  medium 6-piece  24-cell: ')
-  const med6   = collectPuzzles(RECT_24, 6, FREE_TETRACUBE_NAMES,     'm6', seen)
-  console.log(` ${med6.length}`)
-
-  process.stdout.write('  hard   7-piece  28-cell: ')
-  const hard7  = collectPuzzles(RECT_28, 7, ONESIDED_TETRACUBE_NAMES, 'h7', seen)
-  console.log(` ${hard7.length}`)
-
-  process.stdout.write('  hard   8-piece  32-cell: ')
-  const hard8  = collectPuzzles(RECT_32, 8, ONESIDED_TETRACUBE_NAMES, 'h8', seen)
-  console.log(` ${hard8.length}`)
-
-  // Interleave so the daily pool alternates between piece counts within each tier
-  const easyAll = interleave(easy3, easy4)
-  const medAll  = interleave(med5, med6)
-  const hardAll = interleave(hard7, hard8)
-
-  // Daily sets are limited by the smallest tier's count
-  const count = Math.min(easyAll.length, medAll.length, hardAll.length)
-  const daily = Array.from({ length: count }, (_, i) => ({
-    family: 'rectangle',
-    easy:   easyAll[i],
-    medium: medAll[i],
-    hard:   hardAll[i],
-  }))
+  console.log('\nL-prism family:')
+  daily.push(...generateDailySets('l-prism', {
+    c12: LPRISM_12, c16: LPRISM_16, c20: LPRISM_20,
+    c24: LPRISM_24, c28: LPRISM_28, c32: LPRISM_32,
+  }, seen))
 
   const ms = Date.now() - t0
-  console.log(`\n${count} daily sets in ${(ms/1000).toFixed(1)}s`)
-  console.log(`  (easy: ${easyAll.length}, medium: ${medAll.length}, hard: ${hardAll.length})`)
-
+  console.log(`\n${daily.length} total daily sets in ${(ms / 1000).toFixed(1)}s`)
   writeFileSync(outPath, JSON.stringify({ daily }, null, 2))
   console.log(`Written → ${outPath}`)
 
-  if (count < 10) {
-    console.warn(`\n⚠  Only ${count} daily sets — add more container families to expand the pool.`)
+  if (daily.length < 30) {
+    console.warn(`\n⚠  Only ${daily.length} daily sets — add more container families to expand the pool.`)
   }
 }
 
