@@ -299,6 +299,58 @@ const TSLAB_24 = tSlabSpecs(24)
 const TSLAB_28 = tSlabSpecs(28)
 const TSLAB_32 = tSlabSpecs(32)
 
+// ── Step-prism family ─────────────────────────────────────────────────────────
+//
+// Cross-section: 4-cell S-skew (2-step staircase) in a 3×2 bounding box,
+// extruded d units deep. Gives exactly 4d cells — hits all 6 cell counts
+// at d=3..8. The centre column (x=1) has both y values, giving 3D pieces
+// enough room to seat.
+//
+// Four orientations per cell count:
+//   A: S-skew in x-y plane, extruded in z → 3×2×d
+//   B: Z-skew (mirror of A) in x-y plane, extruded in z → 3×2×d
+//   C: S-skew in x-z plane, extruded in y → 3×d×2
+//   D: S-skew in y-z plane, extruded in x → d×3×2
+
+function stepPrismSpecs(d: number): ContainerSpec[] {
+  const extrude = (n: number, fn: (i: number) => Vec3[]) =>
+    Array.from({ length: n }, (_, i) => fn(i)).flat()
+
+  return [
+    // A: S-skew — upper-left + lower-right, extruded in z
+    {
+      container: { x: 3, y: 2, z: d },
+      validCells: extrude(d, z => [c(0,1,z), c(1,1,z), c(1,0,z), c(2,0,z)]),
+      total: 4 * d, label: `sp-A-d${d}`,
+    },
+    // B: Z-skew — lower-left + upper-right, extruded in z (mirror of A)
+    {
+      container: { x: 3, y: 2, z: d },
+      validCells: extrude(d, z => [c(0,0,z), c(1,0,z), c(1,1,z), c(2,1,z)]),
+      total: 4 * d, label: `sp-B-d${d}`,
+    },
+    // C: S-skew in x-z plane, extruded in y
+    {
+      container: { x: 3, y: d, z: 2 },
+      validCells: extrude(d, y => [c(0,y,1), c(1,y,1), c(1,y,0), c(2,y,0)]),
+      total: 4 * d, label: `sp-C-d${d}`,
+    },
+    // D: S-skew in y-z plane, extruded in x
+    {
+      container: { x: d, y: 3, z: 2 },
+      validCells: extrude(d, x => [c(x,0,1), c(x,1,1), c(x,1,0), c(x,2,0)]),
+      total: 4 * d, label: `sp-D-d${d}`,
+    },
+  ]
+}
+
+const STEP_12 = stepPrismSpecs(3)
+const STEP_16 = stepPrismSpecs(4)
+const STEP_20 = stepPrismSpecs(5)
+const STEP_24 = stepPrismSpecs(6)
+const STEP_28 = stepPrismSpecs(7)
+const STEP_32 = stepPrismSpecs(8)
+
 // ── pool generation ───────────────────────────────────────────────────────────
 
 const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#3498DB']
@@ -436,6 +488,12 @@ async function main() {
   daily.push(...generateDailySets('l-prism', {
     c12: LPRISM_12, c16: LPRISM_16, c20: LPRISM_20,
     c24: LPRISM_24, c28: LPRISM_28, c32: LPRISM_32,
+  }, seen))
+
+  console.log('\nStep-prism family:')
+  daily.push(...generateDailySets('step-prism', {
+    c12: STEP_12, c16: STEP_16, c20: STEP_20,
+    c24: STEP_24, c28: STEP_28, c32: STEP_32,
   }, seen))
 
   console.log('\nT-slab family:')
