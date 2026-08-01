@@ -263,6 +263,42 @@ const LPRISM_24 = lPrismSpecs(6)  // 4×6=24 cells — medium 6-piece
 const LPRISM_28 = lPrismSpecs(7)  // 4×7=28 cells — hard 7-piece
 const LPRISM_32 = lPrismSpecs(8)  // 4×8=32 cells — hard 8-piece
 
+// ── T-slab family ────────────────────────────────────────────────────────────
+//
+// A wide rectangular slab (W×2×2, where W = pieceCount + 1) with 4 corner
+// cells removed from one face, yielding exactly 4(W-1) = cellCount cells.
+// Viewed from one axis the cut face reads as a T: wide arm on the full layer,
+// narrower centered strip on the trimmed layer.
+//
+// Four orientations per cell count give containers with varied aspect ratios.
+
+function tSlabSpecs(cellCount: number): ContainerSpec[] {
+  const n = cellCount / 4   // piece count
+  const W = n + 1           // slab arm width
+  const make = (base: Vec3, excl: Vec3[]): ContainerSpec => {
+    const excSet = new Set(excl.map(key))
+    const cells  = allCells(base).filter(v => !excSet.has(key(v)))
+    return { container: base, validCells: cells, total: cells.length, label: `ts-n${n}` }
+  }
+  return [
+    // A: W×2×2, remove 4 corners of the y=0 face (at x=0 and x=W-1, both z)
+    make({ x: W, y: 2, z: 2 }, [c(0,0,0), c(0,0,1), c(W-1,0,0), c(W-1,0,1)]),
+    // B: 2×2×W, remove 4 corners of the y=0 face (at z=0 and z=W-1, both x)
+    make({ x: 2, y: 2, z: W }, [c(0,0,0), c(1,0,0), c(0,0,W-1), c(1,0,W-1)]),
+    // C: W×2×2, remove 4 corners of the z=0 face (at x=0 and x=W-1, both y)
+    make({ x: W, y: 2, z: 2 }, [c(0,0,0), c(0,1,0), c(W-1,0,0), c(W-1,1,0)]),
+    // D: 2×W×2, remove 4 corners of the x=0 face (at y=0 and y=W-1, both z)
+    make({ x: 2, y: W, z: 2 }, [c(0,0,0), c(0,0,1), c(0,W-1,0), c(0,W-1,1)]),
+  ]
+}
+
+const TSLAB_12 = tSlabSpecs(12)
+const TSLAB_16 = tSlabSpecs(16)
+const TSLAB_20 = tSlabSpecs(20)
+const TSLAB_24 = tSlabSpecs(24)
+const TSLAB_28 = tSlabSpecs(28)
+const TSLAB_32 = tSlabSpecs(32)
+
 // ── pool generation ───────────────────────────────────────────────────────────
 
 const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#3498DB']
@@ -400,6 +436,12 @@ async function main() {
   daily.push(...generateDailySets('l-prism', {
     c12: LPRISM_12, c16: LPRISM_16, c20: LPRISM_20,
     c24: LPRISM_24, c28: LPRISM_28, c32: LPRISM_32,
+  }, seen))
+
+  console.log('\nT-slab family:')
+  daily.push(...generateDailySets('t-slab', {
+    c12: TSLAB_12, c16: TSLAB_16, c20: TSLAB_20,
+    c24: TSLAB_24, c28: TSLAB_28, c32: TSLAB_32,
   }, seen))
 
   const ms = Date.now() - t0
