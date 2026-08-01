@@ -351,6 +351,44 @@ const STEP_24 = stepPrismSpecs(6)
 const STEP_28 = stepPrismSpecs(7)
 const STEP_32 = stepPrismSpecs(8)
 
+// ── Notch-slab family ────────────────────────────────────────────────────────
+//
+// A wide rectangular slab (W×2×2, W = pieceCount + 1) with the 2 center
+// x-columns removed from one face, leaving exactly 4(W-1) = cellCount cells.
+// The gap creates a U/arch profile: two "feet" flanking an open notch, with a
+// full-width top layer — visually distinct from T-slab (which removes corners).
+//
+// Four orientations rotate which face the notch is cut from.
+
+function notchSlabSpecs(cellCount: number): ContainerSpec[] {
+  const n  = cellCount / 4
+  const W  = n + 1
+  const cL = Math.floor((W - 2) / 2)  // left removed column
+  const cR = cL + 1                    // right removed column
+  const make = (base: Vec3, excl: Vec3[]): ContainerSpec => {
+    const excSet = new Set(excl.map(key))
+    const cells  = allCells(base).filter(v => !excSet.has(key(v)))
+    return { container: base, validCells: cells, total: cells.length, label: `nc-n${n}` }
+  }
+  return [
+    // A: W×2×2, center notch in y=0 face — feet at low-x and high-x ends
+    make({ x: W, y: 2, z: 2 }, [c(cL,0,0), c(cL,0,1), c(cR,0,0), c(cR,0,1)]),
+    // B: 2×2×W, center notch in y=0 face — feet at low-z and high-z ends
+    make({ x: 2, y: 2, z: W }, [c(0,0,cL), c(1,0,cL), c(0,0,cR), c(1,0,cR)]),
+    // C: W×2×2, center notch in z=0 face — feet at low-x and high-x ends
+    make({ x: W, y: 2, z: 2 }, [c(cL,0,0), c(cL,1,0), c(cR,0,0), c(cR,1,0)]),
+    // D: 2×W×2, center notch in x=0 face — feet at low-y and high-y ends
+    make({ x: 2, y: W, z: 2 }, [c(0,cL,0), c(0,cL,1), c(0,cR,0), c(0,cR,1)]),
+  ]
+}
+
+const NOTCH_12 = notchSlabSpecs(12)
+const NOTCH_16 = notchSlabSpecs(16)
+const NOTCH_20 = notchSlabSpecs(20)
+const NOTCH_24 = notchSlabSpecs(24)
+const NOTCH_28 = notchSlabSpecs(28)
+const NOTCH_32 = notchSlabSpecs(32)
+
 // ── pool generation ───────────────────────────────────────────────────────────
 
 const COLORS  = ['#4A90D9','#E67E22','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#3498DB']
@@ -494,6 +532,12 @@ async function main() {
   daily.push(...generateDailySets('step-prism', {
     c12: STEP_12, c16: STEP_16, c20: STEP_20,
     c24: STEP_24, c28: STEP_28, c32: STEP_32,
+  }, seen))
+
+  console.log('\nNotch-slab family:')
+  daily.push(...generateDailySets('notch-slab', {
+    c12: NOTCH_12, c16: NOTCH_16, c20: NOTCH_20,
+    c24: NOTCH_24, c28: NOTCH_28, c32: NOTCH_32,
   }, seen))
 
   console.log('\nT-slab family:')
