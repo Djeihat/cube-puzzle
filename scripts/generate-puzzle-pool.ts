@@ -546,6 +546,37 @@ async function main() {
     c24: TSLAB_24, c28: TSLAB_28, c32: TSLAB_32,
   }, seen))
 
+  // ── Spread same-family entries across the cycle ─────────────────────────────
+  // Assign each set a fractional slot (position_in_family / family_size).
+  // Sorting by slot distributes families evenly so adjacent days differ.
+  // Ties (two families at the same rational slot) are broken by a fixed order.
+  {
+    const FAMILY_RANK: Record<string, number> = {
+      rectangle: 0, 'l-prism': 1, 'step-prism': 2, 'notch-slab': 3, 't-slab': 4,
+    }
+    const familySizes: Record<string, number> = {}
+    for (const s of daily as any[]) familySizes[s.family] = (familySizes[s.family] ?? 0) + 1
+    const pos: Record<string, number> = {}
+    const slotted = (daily as any[]).map(s => {
+      const p = pos[s.family] = (pos[s.family] ?? 0) + 1
+      return { s, slot: (p - 1) / familySizes[s.family], rank: FAMILY_RANK[s.family] ?? 99 }
+    })
+    slotted.sort((a, b) => a.slot !== b.slot ? a.slot - b.slot : a.rank - b.rank)
+    daily.length = 0
+    daily.push(...slotted.map(x => x.s))
+
+    let adjSame = 0
+    for (let i = 1; i < daily.length; i++)
+      if ((daily[i] as any).family === (daily[i - 1] as any).family) adjSame++
+    console.log(adjSame ? `\n⚠  ${adjSame} adjacent same-family pairs!` : '\n✓ No adjacent same-family pairs')
+
+    console.log('\nFirst 10 days:')
+    for (let i = 0; i < 10; i++) {
+      const s = daily[i] as any
+      console.log(`  Day ${i}: ${s.family}  (easy ${s.easy.shapes.length}pc / hard ${s.hard.shapes.length}pc)`)
+    }
+  }
+
   const ms = Date.now() - t0
   console.log(`\n${daily.length} total daily sets in ${(ms / 1000).toFixed(1)}s`)
   writeFileSync(outPath, JSON.stringify({ daily }, null, 2))
