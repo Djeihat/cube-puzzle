@@ -103,6 +103,18 @@ function saveSolvedPuzzles(solved: Record<string, boolean>) {
   try { localStorage.setItem('solvedPuzzles', JSON.stringify(solved)) } catch {}
 }
 
+// Persist in-progress elapsed time so backing out to the menu doesn't reset the clock.
+function elapsedKey(d: string, date: string) { return `daily-elapsed-${d}-${date}` }
+function loadElapsed(d: string, date: string): number {
+  try { return Number(localStorage.getItem(elapsedKey(d, date))) || 0 } catch { return 0 }
+}
+function saveElapsed(d: string, date: string, ms: number) {
+  try { localStorage.setItem(elapsedKey(d, date), String(ms)) } catch {}
+}
+function clearElapsed(d: string, date: string) {
+  try { localStorage.removeItem(elapsedKey(d, date)) } catch {}
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   // ── Navigation initial state ──────────────────────────────────────────────
   screen:             'menu',
@@ -120,15 +132,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   ...freshGame(getEasyPuzzle()),
 
   // ── Navigation actions ────────────────────────────────────────────────────
-  goToMenu: () => set({
-    screen:            'menu',
-    currentDifficulty: null,
-    selectedShapeId:   null,
-    hoveredCell:       null,
-    paused:            false,
-    sessionStart:      null,
-    elapsedMs:         0,
-  }),
+  goToMenu: () => {
+    const { currentDifficulty, elapsedMs, sessionStart, won } = get()
+    if (currentDifficulty && !won) {
+      const total = elapsedMs + (sessionStart ? Date.now() - sessionStart : 0)
+      if (total > 0) saveElapsed(currentDifficulty, getTodayString(), total)
+    }
+    set({
+      screen:            'menu',
+      currentDifficulty: null,
+      selectedShapeId:   null,
+      hoveredCell:       null,
+      paused:            false,
+      sessionStart:      null,
+      elapsedMs:         0,
+    })
+  },
 
   goToStats: () => set({ screen: 'stats', selectedShapeId: null, hoveredCell: null }),
 
@@ -169,12 +188,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { stats } = get()
     const todayRec  = stats.history.find(r => r.date === today)
     const hintsUsed = todayRec?.[d]?.hintsUsed ?? 0
+    // Restore any time accumulated before the player last backed out to the menu.
+    // Clear the key if the puzzle is already solved (it's recorded in stats; no need to keep it).
+    const savedElapsed = alreadySolved ? (clearElapsed(d, today), 0) : loadElapsed(d, today)
     set({
       screen:             'game',
       currentDifficulty:  d,
       currentPuzzleIndex: puzzleIndex,
       paused:             false,
-      elapsedMs:          0,
+      elapsedMs:          savedElapsed,
       sessionStart:       alreadySolved ? null : Date.now(),
       tutorialOpen:       !alreadySolved && !localStorage.getItem('tutorialSeen'),
       ...(alreadySolved ? solvedGame(puzzle, hintsUsed) : freshGame(puzzle)),
@@ -245,6 +267,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const { elapsedMs, sessionStart } = get()
       const timeMs    = elapsedMs + (sessionStart ? Date.now() - sessionStart : 0)
       const hintsUsed = 3 - hintCount
+      clearElapsed(currentDifficulty, getTodayString())
       const newStats  = recordSolve(stats, currentDifficulty, hintsUsed, timeMs)
       saveStats(newStats)
       ;(window as any).umami?.track('puzzle_solved', { difficulty: currentDifficulty })
@@ -296,6 +319,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   reset: () => {
     const { currentDifficulty, currentPuzzleIndex, puzzlePool } = get()
     if (!currentDifficulty) return
+    clearElapsed(currentDifficulty, getTodayString())
     const dailySet = puzzlePool?.[currentPuzzleIndex]
     const basePuzzle = dailySet
       ? assignShapeColors(dailySet[currentDifficulty])
